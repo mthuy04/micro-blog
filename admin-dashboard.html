@@ -1,0 +1,405 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - Pulse</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        
+        /* Hide scrollbar but keep functionality */
+        .no-scrollbar::-webkit-scrollbar { display: none; }
+        .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-900 min-h-screen flex">
+
+    <!-- LEFT SIDEBAR -->
+    <aside class="w-64 bg-white border-r border-slate-200 flex-col fixed left-0 top-0 h-screen z-20 hidden lg:flex">
+        <!-- Logo -->
+        <div class="h-16 flex items-center gap-3 px-6 border-b border-slate-100">
+            <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white shadow-md shadow-indigo-200">
+                <i data-lucide="zap" class="w-5 h-5"></i>
+            </div>
+            <span class="text-lg font-extrabold tracking-tight text-slate-900">GROUP 3 <span class="text-slate-400 font-normal ml-1 text-xs uppercase tracking-wide">Admin</span></span>
+        </div>
+
+        <!-- Navigation -->
+        <nav class="flex-1 overflow-y-auto py-6 px-3 space-y-1">
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-indigo-600 bg-indigo-50 rounded-lg font-medium transition-colors group">
+                <i data-lucide="layout-dashboard" class="w-5 h-5"></i>
+                <span>Dashboard</span>
+            </a>
+            
+            <div class="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">Management</div>
+            
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg font-medium transition-colors group">
+                <i data-lucide="users" class="w-5 h-5 group-hover:text-indigo-600 text-slate-400 transition-colors"></i>
+                <span>Users</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg font-medium transition-colors group">
+                <i data-lucide="file-text" class="w-5 h-5 group-hover:text-indigo-600 text-slate-400 transition-colors"></i>
+                <span>Posts</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg font-medium transition-colors group">
+                <i data-lucide="flag" class="w-5 h-5 group-hover:text-indigo-600 text-slate-400 transition-colors"></i>
+                <div class="flex justify-between w-full items-center">
+                    <span>Reports</span>
+                    <span class="bg-red-100 text-red-600 text-xs font-bold px-2 py-0.5 rounded-full">12</span>
+                </div>
+            </a>
+
+            <div class="pt-4 pb-2 px-3 text-xs font-bold text-slate-400 uppercase tracking-wider">System</div>
+
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg font-medium transition-colors group">
+                <i data-lucide="settings" class="w-5 h-5 group-hover:text-indigo-600 text-slate-400 transition-colors"></i>
+                <span>Settings</span>
+            </a>
+            <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-slate-600 hover:text-indigo-600 hover:bg-slate-50 rounded-lg font-medium transition-colors group">
+                <i data-lucide="shield" class="w-5 h-5 group-hover:text-indigo-600 text-slate-400 transition-colors"></i>
+                <span>Moderation Rules</span>
+            </a>
+        </nav>
+
+        <!-- Admin User Profile -->
+        <div class="p-4 border-t border-slate-100">
+            <button class="flex items-center gap-3 w-full hover:bg-slate-50 p-2 rounded-lg transition-colors text-left">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=AdminUser" class="w-9 h-9 rounded-full bg-slate-100 border border-slate-200">
+                <div class="flex-1 min-w-0">
+                    <p class="text-sm font-bold text-slate-900">Admin User</p>
+                    <p class="text-xs text-slate-500 truncate">admin@pulse.social</p>
+                </div>
+                <i data-lucide="log-out" class="w-4 h-4 text-slate-400"></i>
+            </button>
+        </div>
+    </aside>
+
+    <!-- MAIN CONTENT -->
+    <main class="flex-1 ml-0 lg:ml-64 min-h-screen flex flex-col">
+        
+        <!-- Mobile Header -->
+        <header class="h-16 bg-white border-b border-slate-200 flex lg:hidden items-center justify-between px-4 sticky top-0 z-10">
+             <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
+                    <i data-lucide="zap" class="w-5 h-5"></i>
+                </div>
+                <span class="font-bold text-slate-900">Admin</span>
+            </div>
+            <button class="p-2 hover:bg-slate-50 rounded-lg"><i data-lucide="menu" class="w-6 h-6 text-slate-600"></i></button>
+        </header>
+
+        <!-- Content Wrapper -->
+        <div class="p-6 lg:p-10 max-w-[1600px] mx-auto w-full space-y-8">
+            
+            <!-- Header -->
+            <div class="flex justify-between items-center">
+                <h1 class="text-2xl font-bold text-slate-900">Dashboard Overview</h1>
+                <div class="flex gap-3">
+                     <button class="bg-white border border-slate-200 text-slate-600 px-4 py-2 rounded-lg text-sm font-medium hover:bg-slate-50 transition-colors flex items-center gap-2">
+                        <i data-lucide="download" class="w-4 h-4"></i> Export Data
+                     </button>
+                </div>
+            </div>
+
+            <!-- Summary Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6">
+                <!-- Total Users -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Total Users</p>
+                        <h3 class="text-3xl font-bold text-slate-900">24,582</h3>
+                        <p class="text-xs text-emerald-600 flex items-center gap-1 mt-2 font-medium">
+                            <i data-lucide="trending-up" class="w-3 h-3"></i> +12% this month
+                        </p>
+                    </div>
+                    <div class="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+                        <i data-lucide="users" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Active Users -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Active Now</p>
+                        <h3 class="text-3xl font-bold text-slate-900">1,204</h3>
+                         <p class="text-xs text-emerald-600 flex items-center gap-1 mt-2 font-medium">
+                            <i data-lucide="trending-up" class="w-3 h-3"></i> +5% vs yesterday
+                        </p>
+                    </div>
+                    <div class="p-3 bg-emerald-50 rounded-xl text-emerald-600">
+                        <i data-lucide="activity" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                 <!-- Total Posts -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Total Posts</p>
+                        <h3 class="text-3xl font-bold text-slate-900">142.8K</h3>
+                         <p class="text-xs text-slate-400 mt-2">
+                            Avg 3.2 posts/user
+                        </p>
+                    </div>
+                    <div class="p-3 bg-blue-50 rounded-xl text-blue-600">
+                        <i data-lucide="message-square" class="w-6 h-6"></i>
+                    </div>
+                </div>
+
+                <!-- Reports Pending -->
+                <div class="bg-white p-6 rounded-2xl border border-slate-200 shadow-sm flex items-start justify-between ring-2 ring-red-50">
+                    <div>
+                        <p class="text-sm font-medium text-slate-500 mb-1">Pending Reports</p>
+                        <h3 class="text-3xl font-bold text-slate-900">12</h3>
+                        <p class="text-xs text-red-500 flex items-center gap-1 mt-2 font-medium">
+                            Requires attention
+                        </p>
+                    </div>
+                    <div class="p-3 bg-red-50 rounded-xl text-red-600">
+                        <i data-lucide="alert-triangle" class="w-6 h-6"></i>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tabs Navigation -->
+            <div class="border-b border-slate-200">
+                <nav class="-mb-px flex gap-6" aria-label="Tabs">
+                    <button id="tab-users-btn" onclick="switchTab('users')" class="border-indigo-500 text-indigo-600 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                        <i data-lucide="users" class="w-4 h-4"></i> Users
+                    </button>
+                    <button id="tab-posts-btn" onclick="switchTab('posts')" class="border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300 whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm flex items-center gap-2">
+                        <i data-lucide="file-text" class="w-4 h-4"></i> Recent Posts
+                    </button>
+                </nav>
+            </div>
+
+            <!-- USERS TABLE SECTION -->
+            <div id="tab-users" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+                <div class="p-4 border-b border-slate-100 flex gap-4 justify-between items-center flex-wrap">
+                     <div class="relative max-w-md w-full">
+                        <div class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-400">
+                            <i data-lucide="search" class="w-4 h-4"></i>
+                        </div>
+                        <input type="text" class="pl-10 pr-4 py-2 w-full border border-slate-200 rounded-lg text-sm focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 outline-none" placeholder="Search users by name or email...">
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="px-3 py-2 border border-slate-200 rounded-lg text-sm font-medium text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                            <i data-lucide="filter" class="w-4 h-4"></i> Filter
+                        </button>
+                    </div>
+                </div>
+
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/50 border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                                <th class="px-6 py-4">User</th>
+                                <th class="px-6 py-4">Status</th>
+                                <th class="px-6 py-4">Role</th>
+                                <th class="px-6 py-4">Joined</th>
+                                <th class="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            <!-- User Row 1 -->
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-10 h-10 rounded-full bg-indigo-50 border border-slate-200">
+                                        <div>
+                                            <p class="font-bold text-slate-900">Minh Thuy</p>
+                                            <p class="text-xs text-slate-500">mthuy04@gmail.com</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600">User</td>
+                                <td class="px-6 py-4 text-slate-500">Oct 24, 2023</td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Block">
+                                            <i data-lucide="ban" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="More">
+                                            <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                            <!-- User Row 2 -->
+                             <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Jessica" class="w-10 h-10 rounded-full bg-yellow-50 border border-slate-200">
+                                        <div>
+                                            <p class="font-bold text-slate-900">Huyễn Thương Nguyễn</p>
+                                            <p class="text-xs text-slate-500">thuongyeukien.2005@gmail.com</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                                        Active
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600">Verified</td>
+                                <td class="px-6 py-4 text-slate-500">Sep 12, 2023</td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button class="p-1.5 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded transition-colors" title="Block">
+                                            <i data-lucide="ban" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="p-1.5 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors" title="Delete">
+                                            <i data-lucide="trash-2" class="w-4 h-4"></i>
+                                        </button>
+                                        <button class="p-1.5 text-slate-400 hover:text-indigo-600 hover:bg-indigo-50 rounded transition-colors" title="More">
+                                            <i data-lucide="more-horizontal" class="w-4 h-4"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+
+                             <!-- User Row 3 (Blocked) -->
+                             <tr class="bg-red-50/30 hover:bg-red-50/50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Mark" class="w-10 h-10 rounded-full bg-slate-200 border border-slate-200 grayscale opacity-70">
+                                        <div>
+                                            <p class="font-bold text-slate-600">Linh yêu Hoàng</p>
+                                            <p class="text-xs text-slate-400">linhlon@gmail.com</p>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-red-100 text-red-800">
+                                        Blocked
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-slate-600">User</td>
+                                <td class="px-6 py-4 text-slate-500">Nov 01, 2023</td>
+                                <td class="px-6 py-4 text-right">
+                                    <div class="flex items-center justify-end gap-2">
+                                        <button class="px-3 py-1 text-xs font-medium bg-white border border-slate-200 text-slate-600 rounded hover:bg-slate-50 transition-colors">
+                                            Unblock
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+                
+                <!-- Pagination -->
+                <div class="bg-white px-6 py-4 border-t border-slate-100 flex items-center justify-between">
+                    <span class="text-sm text-slate-500">Showing <span class="font-bold text-slate-900">1-10</span> of <span class="font-bold text-slate-900">24,582</span> users</span>
+                    <div class="flex gap-2">
+                        <button class="px-3 py-1 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50 disabled:opacity-50" disabled>Previous</button>
+                        <button class="px-3 py-1 border border-slate-200 rounded-lg text-sm text-slate-600 hover:bg-slate-50">Next</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- POSTS TABLE SECTION (Hidden by default) -->
+            <div id="tab-posts" class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden hidden">
+                 <div class="p-4 border-b border-slate-100 flex gap-4 justify-between items-center">
+                     <h3 class="font-bold text-slate-700">Recent Content</h3>
+                     <button class="text-sm text-red-600 font-medium hover:underline">View Reported Posts (12)</button>
+                </div>
+                <div class="overflow-x-auto">
+                    <table class="w-full text-left border-collapse">
+                        <thead>
+                            <tr class="bg-slate-50/50 border-b border-slate-100 text-xs uppercase tracking-wider text-slate-500 font-semibold">
+                                <th class="px-6 py-4">Author</th>
+                                <th class="px-6 py-4">Content Preview</th>
+                                <th class="px-6 py-4">Date</th>
+                                <th class="px-6 py-4">Reports</th>
+                                <th class="px-6 py-4 text-right">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-slate-100 text-sm">
+                            <!-- Post Row 1 -->
+                            <tr class="hover:bg-slate-50/50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sara" class="w-8 h-8 rounded-full bg-indigo-50">
+                                        <span class="font-medium text-slate-900">Sara Jenkins</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 max-w-md truncate text-slate-600">
+                                    Designing the new dashboard for our client. 🎨 Sticking to a clean, minimalist...
+                                </td>
+                                <td class="px-6 py-4 text-slate-500">2h ago</td>
+                                <td class="px-6 py-4">
+                                    <span class="text-slate-400">-</span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <button class="text-indigo-600 hover:text-indigo-800 font-medium text-xs mr-3">View</button>
+                                    <button class="text-red-600 hover:text-red-800 font-medium text-xs">Delete</button>
+                                </td>
+                            </tr>
+                             <!-- Post Row 2 (Reported) -->
+                            <tr class="bg-red-50/30 hover:bg-red-50/50 transition-colors">
+                                <td class="px-6 py-4">
+                                    <div class="flex items-center gap-3">
+                                        <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Anon" class="w-8 h-8 rounded-full bg-slate-200">
+                                        <span class="font-medium text-slate-900">Anonymous</span>
+                                    </div>
+                                </td>
+                                <td class="px-6 py-4 max-w-md truncate text-slate-600 italic">
+                                    [Content flagged for spam] Buy cheap crypto now!!! Click link...
+                                </td>
+                                <td class="px-6 py-4 text-slate-500">5m ago</td>
+                                <td class="px-6 py-4">
+                                    <span class="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-800">
+                                        5 Reports
+                                    </span>
+                                </td>
+                                <td class="px-6 py-4 text-right">
+                                    <button class="text-indigo-600 hover:text-indigo-800 font-medium text-xs mr-3">Review</button>
+                                    <button class="text-red-600 hover:text-red-800 font-medium text-xs">Delete</button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        lucide.createIcons();
+
+        function switchTab(tabName) {
+            // Hide all tabs
+            document.getElementById('tab-users').classList.add('hidden');
+            document.getElementById('tab-posts').classList.add('hidden');
+
+            // Reset buttons
+            document.getElementById('tab-users-btn').classList.replace('border-indigo-500', 'border-transparent');
+            document.getElementById('tab-users-btn').classList.replace('text-indigo-600', 'text-slate-500');
+            document.getElementById('tab-posts-btn').classList.replace('border-indigo-500', 'border-transparent');
+            document.getElementById('tab-posts-btn').classList.replace('text-indigo-600', 'text-slate-500');
+
+            // Show selected
+            document.getElementById(`tab-${tabName}`).classList.remove('hidden');
+            
+            // Highlight button
+            const btn = document.getElementById(`tab-${tabName}-btn`);
+            btn.classList.replace('border-transparent', 'border-indigo-500');
+            btn.classList.replace('text-slate-500', 'text-indigo-600');
+            btn.classList.remove('hover:text-slate-700', 'hover:border-slate-300');
+        }
+    </script>
+</body>
+</html>
