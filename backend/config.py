@@ -1,7 +1,8 @@
 # backend/config.py
-
 import os
+from pathlib import Path
 
+BASE_DIR = Path(__file__).resolve().parent
 
 class Config:
     SECRET_KEY = os.getenv("SECRET_KEY", "dev-secret-key")
@@ -9,7 +10,7 @@ class Config:
     MYSQL_USER = os.getenv("MYSQL_USER", "root")
     MYSQL_PASSWORD = os.getenv("MYSQL_PASSWORD", "")
     MYSQL_HOST = os.getenv("MYSQL_HOST", "localhost")
-    MYSQL_DB = os.getenv("MYSQL_DB", "micro_blog")
+    MYSQL_DB = os.getenv("MYSQL_DB", "micro_blog")  # trùng với DB bạn đã tạo
 
     SQLALCHEMY_DATABASE_URI = (
         f"mysql+pymysql://{MYSQL_USER}:{MYSQL_PASSWORD}"
@@ -17,5 +18,4 @@ class Config:
     )
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
-    BASE_DIR = os.path.abspath(os.path.dirname(__file__))
-    UPLOAD_FOLDER = os.path.join(BASE_DIR, "static", "uploads")
+    UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"

@@ -1,21 +1,19 @@
 // frontend/src/api/client.js
 import axios from "axios";
 
-const API_BASE_URL =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:5000/api";
+// ĐỔI "localhost" -> "127.0.0.1"
+const API_BASE_URL = "http://127.0.0.1:5000/api";
 
-// ====== LocalStorage keys ======
 const TOKEN_KEY = "accessToken";
 const USER_KEY = "currentUser";
 
-// ====== Axios instance ======
 const api = axios.create({
   baseURL: API_BASE_URL,
 });
 
-// Tự động gắn JWT token vào header Authorization
+// 4. Interceptor: Tự động gắn token vào mọi request gửi đi
 api.interceptors.request.use((config) => {
-  const token = getToken();
+  const token = localStorage.getItem(TOKEN_KEY); // Sử dụng biến đã khai báo ở trên
   if (token) {
     config.headers = config.headers || {};
     config.headers.Authorization = `Bearer ${token}`;
@@ -23,7 +21,8 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ====== Helpers cho token ======
+// ====== Các hàm Helper ======
+
 export function setToken(token) {
   if (!token) return;
   localStorage.setItem(TOKEN_KEY, token);
@@ -37,7 +36,6 @@ export function clearToken() {
   localStorage.removeItem(TOKEN_KEY);
 }
 
-// ====== Helpers cho current user (lưu object JSON) ======
 export function setCurrentUser(user) {
   if (!user) return;
   localStorage.setItem(USER_KEY, JSON.stringify(user));
@@ -58,5 +56,5 @@ export function clearCurrentUser() {
   localStorage.removeItem(USER_KEY);
 }
 
-// Export mặc định: axios instance
+// Export mặc định
 export default api;

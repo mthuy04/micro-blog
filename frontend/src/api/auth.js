@@ -8,14 +8,21 @@ export async function register(payload) {
 }
 
 export async function login(payload) {
-  // POST /api/auth/login
-  const res = await api.post("/auth/login", payload);
-  // Giả định backend trả { access_token, user }
-  const { access_token, user } = res.data;
-  if (access_token) localStorage.setItem("accessToken", access_token);
-  if (user) localStorage.setItem("currentUser", JSON.stringify(user));
-  return res.data;
-}
+    const res = await api.post("/auth/login", payload);
+    
+    // === SỬA ĐOẠN NÀY ===
+    // Backend trả về key là "token", không phải "access_token"
+    const { token, user } = res.data; 
+    
+    // Sửa access_token thành token
+    if (token) {
+        localStorage.setItem("accessToken", token);
+    }
+    // ====================
+  
+    if (user) localStorage.setItem("currentUser", JSON.stringify(user));
+    return res.data;
+  }
 
 export function logout() {
   localStorage.removeItem("accessToken");

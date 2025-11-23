@@ -1,13 +1,11 @@
-// frontend/src/api/posts.js
 import api from "./client";
 
-// Lấy newsfeed chính
-export async function getFeed() {
-  const res = await api.get("/posts/feed"); // GET /api/posts/feed
-  return res.data;
-}
+export async function getFeed(type = "for_you") {
+    const res = await api.get(`/posts/feed?type=${type}`);
+    return res.data;
+  }
 
-// Tạo post mới (text + image)
+// Cập nhật để nhận formData (gồm file)
 export async function createPost(formData) {
   const res = await api.post("/posts", formData, {
     headers: { "Content-Type": "multipart/form-data" },
@@ -15,23 +13,17 @@ export async function createPost(formData) {
   return res.data;
 }
 
-// Toggle like / unlike 1 post
 export async function toggleLike(postId) {
-  const res = await api.post(`/posts/${postId}/like`);
-  // Backend trả về post đã update (likes_count, liked_by_me, ...)
+  const res = await api.post(`/posts/${postId}/likes`);
   return res.data;
 }
 
-// Lấy chi tiết 1 post
-export async function getPost(postId) {
-  const res = await api.get(`/posts/${postId}`);
-  // Có thể là { post, comments } hoặc chỉ post
+export async function getPost(id) {
+  const res = await api.get(`/posts/${id}`);
   return res.data;
 }
 
-// Tạo comment cho post
 export async function createComment(postId, payload) {
-  // payload: { content: "..." }
   const res = await api.post(`/posts/${postId}/comments`, payload);
   return res.data;
 }

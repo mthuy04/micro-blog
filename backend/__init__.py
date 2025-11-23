@@ -6,7 +6,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_migrate import Migrate
 from flask_cors import CORS
 
-from .config import Config  # dùng relative import
+from .config import Config  # lấy config MySQL, SECRET_KEY, ...
 
 # ----- SQLAlchemy & Migrate -----
 db = SQLAlchemy()
@@ -21,38 +21,16 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # ----- CORS CHO FRONTEND VITE (5174) -----
-    CORS(
-        app,
-        resources={
-            r"/api/*": {
-                "origins": [
-                    "http://localhost:5174",
-                    "http://127.0.0.1:5174",
-                ]
-            }
-        },
-        supports_credentials=True,
-    )
-    # -----------------------------------------
+    # ===== SỬA LẠI ĐOẠN NÀY =====
+    # Cho phép tất cả các nguồn (origins="*") để dev cho dễ, tránh lỗi CORS
+    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
+    # ============================
 
-    # Import models để SQLAlchemy biết các bảng
-    from . import models  # noqa: F401
+    from . import models
 
-    # Import & register các blueprint
-    from .routes.auth import auth_bp
-    from .routes.posts import posts_bp
-    from .routes.social import social_bp
-    from .routes.notifications import notifications_bp
-    from .routes.admin import admin_bp
-    from .routes.uploads import uploads_bp
-
-    app.register_blueprint(auth_bp, url_prefix="/api/auth")
-    app.register_blueprint(posts_bp, url_prefix="/api/posts")
-    app.register_blueprint(social_bp, url_prefix="/api/social")
-    app.register_blueprint(notifications_bp, url_prefix="/api/notifications")
-    app.register_blueprint(admin_bp, url_prefix="/api/admin")
-    app.register_blueprint(uploads_bp, url_prefix="/api/uploads")
+    # Import & register 1 blueprint duy nhất cho API
+    from .routes import api_bp
+    app.register_blueprint(api_bp, url_prefix="/api")
 
     # Dev local: tự tạo bảng nếu chưa có
     with app.app_context():

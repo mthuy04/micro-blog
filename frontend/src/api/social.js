@@ -1,48 +1,43 @@
-// frontend/src/api/social.js
 import api from "./client";
 
-// Gợi ý "Who to follow" ở sidebar
-export async function getSuggestions() {
-  const res = await api.get("/social/suggestions"); // GET /api/social/suggestions
-  return res.data;
-}
-
-// Follow 1 user
-export async function followUser(userId) {
-  const res = await api.post(`/social/follow/${userId}`);
-  return res.data;
-}
-
-// Unfollow 1 user
-export async function unfollowUser(userId) {
-  const res = await api.post(`/social/unfollow/${userId}`);
-  return res.data;
-}
-
-// Lấy thông tin profile theo username
+// Lấy thông tin user theo username
 export async function getProfile(username) {
-  const res = await api.get(`/social/profile/${username}`); // GET /api/social/profile/<username>
+  const res = await api.get(`/users/${username}`);
   return res.data;
 }
 
-// Lấy các post của 1 user
+// Lấy bài viết của user đó
 export async function getUserPosts(username) {
-  const res = await api.get(`/social/profile/${username}/posts`);
+  const res = await api.get(`/users/${username}/posts`);
   return res.data;
 }
 
-// Update profile (tên, bio, location, website)
-export async function updateProfile(payload) {
-  // PATCH /api/social/me
-  const res = await api.patch("/social/me", payload);
+// Cập nhật profile
+export async function updateProfile(data) {
+  const res = await api.put("/users/profile", data);
   return res.data;
 }
 
-// Upload avatar mới
+// Upload Avatar
 export async function updateAvatar(formData) {
-  // POST /api/uploads/avatar
-  const res = await api.post("/uploads/avatar", formData, {
+  const res = await api.post("/users/avatar", formData, {
     headers: { "Content-Type": "multipart/form-data" },
   });
   return res.data;
 }
+
+// Follow / Unfollow
+export async function followUser(userId) {
+  const res = await api.post(`/users/${userId}/follow`);
+  return res.data;
+}
+
+export async function unfollowUser(userId) {
+  const res = await api.post(`/users/${userId}/unfollow`);
+  return res.data;
+}
+
+export async function getSuggestions() {
+    const res = await api.get("/users/suggestions");
+    return res.data;
+  }

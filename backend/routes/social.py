@@ -29,26 +29,6 @@ def create_comment(current_user: User, post_id: int):
 
 # ===== Likes =====
 
-@api_bp.post("/posts/<int:post_id>/likes")
-@token_required
-def toggle_like(current_user: User, post_id: int):
-    post = Post.query.get_or_404(post_id)
-    existing = Like.query.filter_by(user_id=current_user.id, post_id=post.id).first()
-    if existing:
-        db.session.delete(existing)
-        db.session.commit()
-        return jsonify({"message": "Unliked"}), 200
-
-    like = Like(user=current_user, post=post)
-    db.session.add(like)
-    if current_user.id != post.user_id:
-        notif = Notification(
-            user_id=post.user_id, actor_id=current_user.id, action="like", post_id=post.id
-        )
-        db.session.add(notif)
-    db.session.commit()
-    return jsonify({"message": "Liked"}), 201
-
 # ===== Follow / Unfollow =====
 
 @api_bp.post("/users/<int:user_id>/follow")

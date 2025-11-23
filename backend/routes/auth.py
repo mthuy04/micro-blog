@@ -10,6 +10,7 @@ from backend.models import User
 from . import api_bp
 
 
+
 def generate_token(user: User) -> str:
     payload = {
         "user_id": user.id,
@@ -91,9 +92,18 @@ def login():
         return jsonify({"error": "Invalid credentials"}), 401
 
     token = generate_token(user)
+    username = user.email.split('@')[0]
     return jsonify(
         {
             "token": token,
-            "user": {"id": user.id, "name": user.name, "email": user.email},
+            "user": {
+                "id": user.id, 
+                "name": user.name, 
+                "email": user.email,
+                "username": username, # <--- THÊM DÒNG NÀY
+                "avatar": user.avatar,
+                "is_admin": user.is_admin
+            },
         }
     )
+

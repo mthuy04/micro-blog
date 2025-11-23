@@ -1,38 +1,62 @@
-// frontend/src/App.jsx
-import { Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { getToken } from "./api/client";
+
+// Import các trang
 import LandingPage from "./pages/LandingPage";
 import LoginPage from "./pages/LoginPage";
 import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
-import AdminDashboard from "./pages/AdminDashboard";
 import ProfilePage from "./pages/ProfilePage";
 import EditProfilePage from "./pages/EditProfilePage";
-import PostDetailPage from "./pages/PostDetailPage";
-import { RequireAuth, RequireAdmin } from "./components/common/ProtectedRoute";
+// import PostDetailPage from "./pages/PostDetailPage"; // (Nếu bạn đã tạo file này)
+
+// Component bảo vệ (chỉ cho phép vào khi đã đăng nhập)
+function ProtectedRoute({ children }) {
+  const token = getToken();
+  return token ? children : <Navigate to="/login" replace />;
+}
 
 export default function App() {
   return (
-    <Routes>
-      {/* Public routes */}
-      <Route path="/" element={<LandingPage />} />
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/register" element={<RegisterPage />} />
+    <BrowserRouter>
+      <Routes>
+        {/* Trang công khai */}
+        <Route path="/" element={<LandingPage />} />
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/register" element={<RegisterPage />} />
 
-      {/* Routes cần login */}
-      <Route element={<RequireAuth />}>
-        <Route path="/home" element={<HomePage />} />
-        <Route path="/profile/:username" element={<ProfilePage />} />
-        <Route path="/profile/:username/edit" element={<EditProfilePage />} />
-        <Route path="/posts/:id" element={<PostDetailPage />} />
-      </Route>
+        {/* Trang yêu cầu đăng nhập */}
+        <Route 
+          path="/home" 
+          element={
+            <ProtectedRoute>
+              <HomePage />
+            </ProtectedRoute>
+          } 
+        />
+        
+        {/* Trang Profile: :username là tham số động (ví dụ: mthuy, felix...) */}
+        <Route 
+          path="/profile/:username" 
+          element={
+            <ProtectedRoute>
+              <ProfilePage />
+            </ProtectedRoute>
+          } 
+        />
 
-      {/* Admin routes */}
-      <Route element={<RequireAdmin />}>
-        <Route path="/admin" element={<AdminDashboard />} />
-      </Route>
+        <Route 
+          path="/profile/edit" 
+          element={
+            <ProtectedRoute>
+              <EditProfilePage />
+            </ProtectedRoute>
+          } 
+        />
 
-      {/* Fallback */}
-      <Route path="*" element={<Navigate to="/" replace />} />
-    </Routes>
+        {/* Fallback: Nếu nhập link linh tinh thì về Home */}
+        <Route path="*" element={<Navigate to="/" />} />
+      </Routes>
+    </BrowserRouter>
   );
 }
