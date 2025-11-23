@@ -8,7 +8,7 @@ import RegisterPage from "./pages/RegisterPage";
 import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import EditProfilePage from "./pages/EditProfilePage";
-// import PostDetailPage from "./pages/PostDetailPage"; // (Nếu bạn đã tạo file này)
+import PostDetailPage from "./pages/PostDetailPage"; // Đảm bảo file này đã được tạo
 
 // Component bảo vệ (chỉ cho phép vào khi đã đăng nhập)
 function ProtectedRoute({ children }) {
@@ -35,7 +35,6 @@ export default function App() {
           } 
         />
         
-        {/* Trang Profile: :username là tham số động (ví dụ: mthuy, felix...) */}
         <Route 
           path="/profile/:username" 
           element={
@@ -53,6 +52,17 @@ export default function App() {
             </ProtectedRoute>
           } 
         />
+
+        {/* --- ĐÂY LÀ DÒNG QUAN TRỌNG BẠN ĐANG THIẾU --- */}
+        <Route 
+          path="/post/:id" 
+          element={
+            <ProtectedRoute>
+              <PostDetailPage />
+            </ProtectedRoute>
+          } 
+        />
+        {/* --------------------------------------------- */}
 
         {/* Fallback: Nếu nhập link linh tinh thì về Home */}
         <Route path="*" element={<Navigate to="/" />} />

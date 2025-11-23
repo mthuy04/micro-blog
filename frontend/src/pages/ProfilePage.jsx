@@ -21,7 +21,7 @@ export default function ProfilePage() {
         const p = await getProfile(username);
         setProfile(p);
         const ps = await getUserPosts(username);
-        setPosts(ps.posts || ps); // Data trả về là array
+        setPosts(ps.posts || ps);
       } catch (err) { console.error(err); }
     }
     load();
@@ -32,7 +32,6 @@ export default function ProfilePage() {
       if (profile.is_following) await unfollowUser(profile.id);
       else await followUser(profile.id);
       
-      // Cập nhật UI ngay lập tức
       setProfile(prev => ({ 
           ...prev, 
           is_following: !prev.is_following,
@@ -41,9 +40,37 @@ export default function ProfilePage() {
     } catch(err) { console.error(err); }
   }
 
+  // --- HÀM XỬ LÝ HIỂN THỊ NỘI DUNG (BAO GỒM REPOST) ---
+  const renderContent = (content) => {
+      if (content.startsWith("REPOST::")) {
+          try {
+              const data = JSON.parse(content.replace("REPOST::", ""));
+              // Xử lý ảnh avatar fallback
+              const repostAvatar = getImageUrl(data.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.original_username}`;
+              
+              return (
+                  <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
+                      <div className="flex items-center gap-2 mb-2">
+                          <img src={repostAvatar} className="w-6 h-6 rounded-full border border-slate-100" alt="orig" />
+                          <span className="font-bold text-sm text-slate-900">{data.original_author}</span>
+                          <span className="text-slate-500 text-xs">@{data.original_username}</span>
+                      </div>
+                      <p className="text-sm text-slate-800 mb-2">{data.original_content}</p>
+                      {data.original_image && (
+                          <div className="rounded-xl overflow-hidden h-40 border border-slate-100">
+                              <img src={getImageUrl(data.original_image)} className="w-full h-full object-cover" alt="orig content"/>
+                          </div>
+                      )}
+                  </div>
+              );
+          } catch { return content; }
+      }
+      return <p className="text-slate-800 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">{content}</p>;
+  };
+  // ----------------------------------------------------
+
   if (!profile) return <MainLayout><div className="p-10 text-center">Loading profile...</div></MainLayout>;
 
-  // Avatar Profile
   const avatarSrc = getImageUrl(profile.avatar_url) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`;
 
   return (
@@ -64,7 +91,6 @@ export default function ProfilePage() {
 
         {/* Profile Info */}
         <div className="relative mb-6">
-            {/* Cover Image (Static for now) */}
             <div className="h-48 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative overflow-hidden group">
             </div>
 
@@ -77,7 +103,7 @@ export default function ProfilePage() {
                     </div>
                     
                     {currentUser?.username === profile.username ? (
-                        <Link to="/profile/edit" className="mb-2 px-5 py-2.5 border border-slate-300 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 transition-all">
+                        <Link to="/profile/edit" className="mb-2 px-5 py-2.5 border border-slate-300 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all bg-white/80 backdrop-blur-sm">
                             Edit profile
                         </Link>
                     ) : (
@@ -99,7 +125,6 @@ export default function ProfilePage() {
 
                     <div className="flex flex-wrap gap-4 text-sm text-slate-500 items-center pt-1">
                         <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /><span>{profile.location || "Hanoi, VN"}</span></div>
-                        {/* Hiển thị ngày tham gia thật */}
                         <div className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /><span>{profile.joined_date || "Joined 2023"}</span></div>
                     </div>
 
@@ -124,50 +149,54 @@ export default function ProfilePage() {
             {posts.length === 0 && <div className="p-10 text-center text-slate-500">No posts yet.</div>}
             
             {posts.map(post => (
-                <article key={post.id} className="bg-white p-6 border-b border-slate-100 hover:bg-slate-50/50 transition-colors cursor-pointer">
-                    <div className="flex gap-4">
-                        <img src={avatarSrc} className="w-12 h-12 rounded-full bg-slate-100 border-slate-100 flex-shrink-0 object-cover" alt="User" />
-                        <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-1">
-                                <h3 className="font-bold text-slate-900 text-[15px]">{post.author_name}</h3>
-                                <span className="text-slate-400 text-[14px]">@{post.author_username}</span>
-                                <span className="text-slate-300 text-[10px]">•</span>
-                                <span className="text-slate-400 text-[14px]">{post.created_at_human}</span>
+                <div key={post.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
+                    <article className="p-6">
+                        {post.content.startsWith("REPOST::") && (
+                            <div className="flex items-center gap-2 mb-2 text-xs text-slate-500 font-bold ml-12">
+                                <Repeat className="w-3 h-3" /> <span>{post.author_name} reposted</span>
                             </div>
-                            <p className="text-slate-800 text-[15px] leading-relaxed mb-3">{post.content}</p>
-                            
-                            {/* FIX: Hiển thị ảnh bài viết trong Profile */}
-                            {post.image_url && (
-                                <div className="rounded-2xl overflow-hidden border border-slate-200 mb-3 bg-slate-100">
-                                    <img src={getImageUrl(post.image_url)} className="w-full h-auto object-cover" alt="Post" />
+                        )}
+
+                        <div className="flex gap-4">
+                            <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-12 h-12 rounded-full bg-slate-100 border-slate-100 flex-shrink-0 object-cover" alt="User" />
+                            <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-1">
+                                    <span className="font-bold text-slate-900 text-[15px]">{post.author_name}</span>
+                                    <span className="text-slate-400 text-[14px]">@{post.author_username}</span>
+                                    <span className="text-slate-300 text-[10px]">•</span>
+                                    <span className="text-slate-400 text-[14px]">{post.created_at_human}</span>
                                 </div>
-                            )}
-                            
-                            <div className="flex justify-between items-center text-slate-400 max-w-md pt-1">
-                                {/* Nút Comment Link */}
-                                <Link to={`/post/${post.id}`} className="flex items-center gap-2 hover:text-indigo-500">
-                                    <MessageCircle className="w-5 h-5" /> <span className="text-sm">{post.comments_count}</span>
+                                
+                                {/* Link sang trang chi tiết */}
+                                <Link to={`/post/${post.id}`} className="block group">
+                                    {renderContent(post.content)}
+                                    {post.image_url && (
+                                        <div className="rounded-2xl overflow-hidden border border-slate-200 mb-3 bg-slate-100 mt-3">
+                                            <img src={getImageUrl(post.image_url)} className="w-full h-auto object-cover" alt="Post" />
+                                        </div>
+                                    )}
                                 </Link>
-                                <div className="flex items-center gap-2 hover:text-green-500"><Repeat className="w-5 h-5" /> <span className="text-sm">0</span></div>
-                                <div className="flex items-center gap-2 hover:text-pink-500"><Heart className="w-5 h-5" /> <span className="text-sm">{post.likes_count}</span></div>
-                                <div className="flex items-center gap-2 hover:text-indigo-500"><Share2 className="w-5 h-5" /></div>
+                                
+                                <div className="flex justify-between items-center text-slate-400 max-w-md pt-1">
+                                    <div className="flex items-center gap-2 hover:text-indigo-500"><MessageCircle className="w-5 h-5" /> <span className="text-sm">{post.comments_count}</span></div>
+                                    <div className="flex items-center gap-2 hover:text-green-500"><Repeat className="w-5 h-5" /> <span className="text-sm">0</span></div>
+                                    <div className="flex items-center gap-2 hover:text-pink-500"><Heart className="w-5 h-5" /> <span className="text-sm">{post.likes_count}</span></div>
+                                    <div className="flex items-center gap-2 hover:text-indigo-500"><Share2 className="w-5 h-5" /></div>
+                                </div>
                             </div>
                         </div>
-                    </div>
-                </article>
+                    </article>
+                </div>
             ))}
         </div>
       </main>
 
-      {/* RIGHT SIDEBAR (Giữ nguyên từ HomePage hoặc MainLayout) */}
+      {/* RIGHT SIDEBAR */}
       <aside className="hidden xl:block w-[350px] pl-8 pt-6 space-y-8 sticky top-0 h-screen overflow-y-auto pb-8">
         <div className="relative group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400">
-                <Search className="w-5 h-5" />
-            </div>
-            <input type="text" className="w-full pl-12 pr-4 py-3.5 bg-white/60 backdrop-blur-md border border-white/60 shadow-sm rounded-2xl text-sm font-medium outline-none" placeholder="Search Pulse" />
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400"><Search className="w-5 h-5" /></div>
+            <input type="text" className="w-full pl-12 pr-4 py-3 bg-slate-100 border-transparent rounded-full text-sm font-medium outline-none" placeholder="Search Pulse" />
         </div>
-        {/* Có thể thêm Suggestion ở đây nếu muốn */}
       </aside>
 
     </MainLayout>

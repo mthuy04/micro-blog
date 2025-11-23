@@ -27,3 +27,12 @@ export async function createComment(postId, payload) {
   const res = await api.post(`/posts/${postId}/comments`, payload);
   return res.data;
 }
+export async function updatePost(postId, content) {
+    const res = await api.put(`/posts/${postId}`, { content });
+    return res.data;
+  }
+  
+  export async function deletePost(postId) {
+    const res = await api.delete(`/posts/${postId}`);
+    return res.data;
+  }

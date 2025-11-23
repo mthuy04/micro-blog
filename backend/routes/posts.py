@@ -103,3 +103,106 @@ def toggle_like(current_user: User, post_id: int):
         msg = "Liked"
     db.session.commit()
     return jsonify({"message": msg})
+
+# 1. API Lấy chi tiết bài viết (Kèm comments)
+@api_bp.get("/posts/<int:post_id>")
+@token_required
+def get_post_detail(current_user: User, post_id: int):
+    post = Post.query.get_or_404(post_id)
+    
+    # Lấy danh sách comment của bài viết
+    comments_data = []
+    # Sắp xếp comment mới nhất lên đầu (nếu muốn)
+    sorted_comments = sorted(post.comments, key=lambda x: x.created_at, reverse=True)
+    
+    for c in sorted_comments:
+        comments_data.append({
+            "id": c.id,
+            "body": c.body,
+            "created_at_human": c.created_at.strftime("%b %d, %H:%M"),
+            "author_name": c.user.name,
+            "author_username": c.user.email.split('@')[0],
+            "author_avatar": c.user.avatar
+        })
+
+    return jsonify({
+        "id": post.id,
+        "content": post.content,
+        "image_url": post.image,
+        "created_at_human": post.created_at.strftime("%b %d, %Y at %H:%M"),
+        "author_name": post.user.name,
+        "author_username": post.user.email.split('@')[0],
+        "author_avatar": post.user.avatar,
+        "likes_count": len(post.likes),
+        "comments_count": len(post.comments),
+        "liked_by_me": any(l.user_id == current_user.id for l in post.likes),
+        "comments": comments_data # Trả về danh sách comment
+    })
+
+# 2. API Viết Comment
+@api_bp.post("/posts/<int:post_id>/comments")
+@token_required
+def create_comment(current_user: User, post_id: int):
+    data = request.get_json() or {}
+    body = data.get("body", "").strip()
+    
+    if not body:
+        return jsonify({"error": "Comment empty"}), 400
+
+    post = Post.query.get_or_404(post_id)
+    
+    # Import model Comment ở đây để tránh lỗi vòng lặp nếu chưa import ở đầu
+    from ..models import Comment, Notification
+    
+    comment = Comment(body=body, user=current_user, post=post)
+    db.session.add(comment)
+    
+    # Tạo thông báo (nếu người comment không phải chủ bài viết)
+    if post.user_id != current_user.id:
+        notif = Notification(
+            user_id=post.user_id, 
+            actor_id=current_user.id, 
+            action="comment", 
+            post_id=post.id
+        )
+        db.session.add(notif)
+        
+    db.session.commit()
+    
+    return jsonify({"message": "Commented", "id": comment.id}), 201
+
+@api_bp.put("/posts/<int:post_id>")
+@token_required
+def update_post(current_user: User, post_id: int):
+    post = Post.query.get_or_404(post_id)
+    
+    # Kiểm tra quyền chính chủ
+    if post.user_id != current_user.id:
+        return jsonify({"error": "Forbidden"}), 403
+
+    data = request.get_json() or {}
+    new_content = data.get("content", "").strip()
+    
+    if not new_content:
+        return jsonify({"error": "Content required"}), 400
+
+    post.content = new_content
+    db.session.commit()
+    
+    return jsonify({"message": "Post updated", "content": new_content})
+
+@api_bp.delete("/posts/<int:post_id>")
+@token_required
+def delete_post_api(current_user: User, post_id: int):
+    post = Post.query.get_or_404(post_id)
+    
+    # Kiểm tra quyền chính chủ hoặc Admin
+    if post.user_id != current_user.id and not current_user.is_admin:
+        return jsonify({"error": "Forbidden"}), 403
+
+    # (Tuỳ chọn) Nếu muốn xóa cả ảnh trên server thì thêm logic os.remove ở đây
+    
+    db.session.delete(post)
+    db.session.commit()
+    
+    return jsonify({"message": "Post deleted"})

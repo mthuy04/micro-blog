@@ -1,12 +1,13 @@
 import { useEffect, useState, useCallback } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom"; // Thêm useNavigate
 import MainLayout from "../components/layout/MainLayout";
-import { getFeed, createPost, toggleLike, createComment } from "../api/posts";
+import { getFeed, createPost, toggleLike, createComment, deletePost, updatePost } from "../api/posts";
 import { getSuggestions, followUser } from "../api/social";
 import { getCurrentUser } from "../api/client";
 import { 
   Image, Smile, Calendar, MapPin, 
-  MessageCircle, Repeat, Heart, Share, Search, X, Send
+  MessageCircle, Repeat, Heart, Share, Search, X, Send,
+  MoreHorizontal, Trash2, Edit2, Check
 } from "lucide-react";
 import { getImageUrl } from "../utils/env";
 
@@ -21,6 +22,11 @@ export default function HomePage() {
   
   const [activeCommentId, setActiveCommentId] = useState(null); 
   const [commentText, setCommentText] = useState("");
+
+  // State cho Edit/Delete
+  const [openMenuId, setOpenMenuId] = useState(null);
+  const [editingPostId, setEditingPostId] = useState(null);
+  const [editContent, setEditContent] = useState("");
 
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
@@ -43,6 +49,7 @@ export default function HomePage() {
     return () => URL.revokeObjectURL(objectUrl);
   }, [imageFile]);
 
+  // --- LOGIC CREATE POST ---
   async function handleCreatePost() {
     if (!content.trim() && !imageFile) return;
     setLoading(true);
@@ -53,36 +60,22 @@ export default function HomePage() {
 
       const res = await createPost(formData);
       
-      const newPost = {
-          id: res.id,
-          content: content,
-          image_url: res.image_url,
-          author_name: currentUser?.name || "Me",
-          author_username: currentUser?.username || "me",
-          author_avatar: currentUser?.avatar,
-          created_at_human: "Just now",
-          likes_count: 0,
-          comments_count: 0,
-          liked_by_me: false
-      };
-
-      setPosts([newPost, ...posts]);
+      // Reload lại feed để lấy dữ liệu chuẩn từ server (bao gồm ID, author,...)
+      loadData();
+      
       setContent("");
       setImageFile(null);
     } catch (err) { console.error(err); } finally { setLoading(false); }
   }
 
+  // --- LOGIC ACTIONS ---
   async function handleLike(id) {
     try {
       await toggleLike(id);
       setPosts(posts.map(p => {
         if (p.id === id) {
             const isLiked = !p.liked_by_me;
-            return { 
-                ...p, 
-                liked_by_me: isLiked, 
-                likes_count: p.likes_count + (isLiked ? 1 : -1) 
-            };
+            return { ...p, liked_by_me: isLiked, likes_count: p.likes_count + (isLiked ? 1 : -1) };
         }
         return p;
       }));
@@ -104,15 +97,14 @@ export default function HomePage() {
             original_author: postToShare.author_name,
             original_username: postToShare.author_username,
             original_content: postToShare.content,
-            original_avatar: postToShare.author_avatar, // Có thể là null
+            original_avatar: postToShare.author_avatar,
             original_image: postToShare.image_url
         };
         
         const formData = new FormData();
         formData.append("content", `REPOST::${JSON.stringify(repostData)}`);
-        
         await createPost(formData);
-        window.location.reload(); 
+        loadData(); 
     } catch (err) { console.error(err); }
   }
 
@@ -120,23 +112,63 @@ export default function HomePage() {
       if(!commentText.trim()) return;
       try {
           await createComment(postId, { body: commentText });
-          setPosts(posts.map(p => p.id === postId ? {...p, comments_count: p.comments_count + 1} : p));
           setCommentText("");
           setActiveCommentId(null); 
-          // Chuyển sang trang detail để xem comment vừa đăng
+          // Chuyển sang trang detail xem comment
           navigate(`/post/${postId}`);
       } catch(e) { console.error(e); }
   }
 
-  const renderContent = (content) => {
-      if (content.startsWith("REPOST::")) {
+  // --- LOGIC EDIT & DELETE ---
+  async function handleDeletePost(postId) {
+      if(!window.confirm("Delete this post?")) return;
+      try {
+          await deletePost(postId);
+          setPosts(posts.filter(p => p.id !== postId));
+      } catch(e) { console.error(e); }
+  }
+
+  function startEditing(post) {
+      setEditingPostId(post.id);
+      setEditContent(post.content);
+      setOpenMenuId(null);
+  }
+
+  async function saveEdit(postId) {
+      try {
+          await updatePost(postId, editContent);
+          setPosts(posts.map(p => p.id === postId ? {...p, content: editContent} : p));
+          setEditingPostId(null);
+      } catch(e) { console.error(e); }
+  }
+
+  // --- RENDER NỘI DUNG ---
+  const renderPostContent = (post) => {
+      // 1. Đang sửa
+      if (editingPostId === post.id) {
+          return (
+              <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                  <textarea 
+                      className="w-full p-3 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none bg-slate-50"
+                      rows={3}
+                      value={editContent}
+                      onChange={(e) => setEditContent(e.target.value)}
+                  />
+                  <div className="flex gap-2 mt-2">
+                      <button onClick={() => saveEdit(post.id)} className="flex items-center gap-1 px-3 py-1 bg-indigo-600 text-white text-xs rounded-full hover:bg-indigo-700"><Check className="w-3 h-3" /> Save</button>
+                      <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full hover:bg-slate-300">Cancel</button>
+                  </div>
+              </div>
+          );
+      }
+
+      // 2. Repost
+      if (post.content.startsWith("REPOST::")) {
           try {
-              const data = JSON.parse(content.replace("REPOST::", ""));
-              // FIX: Xử lý avatar repost bị null
+              const data = JSON.parse(post.content.replace("REPOST::", ""));
               const repostAvatar = getImageUrl(data.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.original_username}`;
-              
               return (
-                  <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
+                  <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors">
                       <div className="flex items-center gap-2 mb-2">
                           <img src={repostAvatar} className="w-6 h-6 rounded-full border border-slate-100" alt="orig" />
                           <span className="font-bold text-sm text-slate-900">{data.original_author}</span>
@@ -145,19 +177,28 @@ export default function HomePage() {
                       <p className="text-sm text-slate-800 mb-2">{data.original_content}</p>
                       {data.original_image && (
                           <div className="rounded-xl overflow-hidden h-40 border border-slate-100">
-                              <img src={getImageUrl(data.original_image)} className="w-full h-full object-cover" alt="orig content"/>
+                              <img src={getImageUrl(data.original_image)} className="w-full h-full object-cover" alt="orig content" />
                           </div>
                       )}
                   </div>
               );
-          } catch { return content; }
+          } catch { return post.content; }
       }
-      return <p className="text-slate-800 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">{content}</p>;
+      return <p className="text-slate-800 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>;
+  };
+
+  // Hàm chuyển hướng khi bấm vào bài viết (tránh bấm vào nút like/menu)
+  const goToDetail = (e, postId) => {
+      // Nếu đang ở chế độ edit hoặc click vào các nút chức năng thì không chuyển trang
+      if (editingPostId === postId) return;
+      navigate(`/post/${postId}`);
   };
 
   return (
     <MainLayout active="home">
+        
         <main className="w-full lg:w-[600px] border-r border-slate-200/60 min-h-screen pb-20">
+            
             {/* Header Tabs */}
             <div className="sticky top-0 bg-white/80 backdrop-blur-md z-10 border-b border-slate-100 px-6 py-4 flex justify-between items-center">
                 <h2 className="text-xl font-bold text-slate-900">Home</h2>
@@ -170,7 +211,7 @@ export default function HomePage() {
             {/* Create Post Area */}
             <div className="px-6 py-4 border-b border-slate-100 bg-white">
                 <div className="flex gap-4">
-                    <img src={getImageUrl(currentUser?.avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.username}`} className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex-shrink-0" alt="me" />
+                    <img src={getImageUrl(currentUser?.avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${currentUser?.username}`} className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex-shrink-0" alt="avatar" />
                     <div className="flex-1">
                         <textarea value={content} onChange={(e) => setContent(e.target.value)} className="w-full border-none focus:ring-0 text-lg placeholder-slate-400 resize-none min-h-[80px] outline-none" placeholder="What's happening?"></textarea>
                         {previewUrl && (
@@ -194,8 +235,33 @@ export default function HomePage() {
             
             {/* Feed List */}
             {posts.map(post => (
-                <div key={post.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
-                    <article className="p-6">
+                <div key={post.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors relative">
+                    
+                    {/* NÚT MENU (EDIT/DELETE) - SO SÁNH BẰNG USERNAME ĐỂ CHÍNH XÁC */}
+                    {currentUser && currentUser.username === post.author_username && (
+                        <div className="absolute top-4 right-4 z-20">
+                            <button 
+                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === post.id ? null : post.id); }}
+                                className="text-slate-400 hover:text-indigo-600 p-2 hover:bg-indigo-50 rounded-full transition-colors"
+                            >
+                                <MoreHorizontal className="w-5 h-5" />
+                            </button>
+                            
+                            {openMenuId === post.id && (
+                                <div className="absolute right-0 mt-1 w-32 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-30 animate-in fade-in zoom-in duration-200">
+                                    <button onClick={(e) => { e.stopPropagation(); startEditing(post); }} className="w-full text-left px-4 py-3 text-sm text-slate-600 hover:bg-slate-50 hover:text-indigo-600 flex items-center gap-2">
+                                        <Edit2 className="w-4 h-4" /> Edit
+                                    </button>
+                                    <button onClick={(e) => { e.stopPropagation(); handleDeletePost(post.id); }} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2">
+                                        <Trash2 className="w-4 h-4" /> Delete
+                                    </button>
+                                </div>
+                            )}
+                        </div>
+                    )}
+
+                    <article className="p-6 cursor-pointer" onClick={(e) => goToDetail(e, post.id)}>
+                        {/* Repost Header */}
                         {post.content.startsWith("REPOST::") && (
                             <div className="flex items-center gap-2 mb-2 text-xs text-slate-500 font-bold ml-12">
                                 <Repeat className="w-3 h-3" /> <span>{post.author_name} reposted</span>
@@ -206,41 +272,34 @@ export default function HomePage() {
                             <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-12 h-12 rounded-full bg-slate-50 border border-slate-100 flex-shrink-0" alt="author" />
                             <div className="flex-1 min-w-0">
                                 <div className="flex items-center gap-2 mb-1">
-                                    <Link to={`/profile/${post.author_username}`} className="font-bold text-slate-900 text-[15px] hover:underline">{post.author_name}</Link>
+                                    {/* SỬA: Dùng span hoặc div thay vì Link ở đây để tránh lỗi click chồng chéo, hoặc dùng e.stopPropagation */}
+                                    <span className="font-bold text-slate-900 text-[15px] hover:underline z-10" onClick={(e) => {e.stopPropagation(); navigate(`/profile/${post.author_username}`)}}>{post.author_name}</span>
                                     <span className="text-slate-500 text-[15px]">@{post.author_username}</span>
                                     <span className="text-slate-400 text-[15px]">· {post.created_at_human}</span>
                                 </div>
                                 
-                                {/* FIX: Bấm vào nội dung bài viết -> Sang trang Detail */}
-                                <Link to={`/post/${post.id}`} className="block group">
-                                    {renderContent(post.content)}
-                                    {post.image_url && (
-                                        <div className="rounded-2xl overflow-hidden border border-slate-200 mb-3 bg-slate-100 mt-3">
-                                            <img src={getImageUrl(post.image_url)} className="w-full h-auto object-cover" alt="post content" />
-                                        </div>
-                                    )}
-                                </Link>
+                                {renderPostContent(post)}
+                                
+                                {post.image_url && editingPostId !== post.id && (
+                                    <div className="rounded-2xl overflow-hidden border border-slate-200 mb-3 bg-slate-100 mt-3">
+                                        <img src={getImageUrl(post.image_url)} className="w-full h-auto object-cover" alt="post content" />
+                                    </div>
+                                )}
 
                                 <div className="flex justify-between items-center text-slate-500 max-w-md mt-3">
-                                    {/* Nút Comment: Mở ô nhập inline */}
+                                    {/* Comment Button */}
                                     <button onClick={(e) => { e.stopPropagation(); setActiveCommentId(activeCommentId === post.id ? null : post.id); }} className={`flex items-center gap-2 group hover:text-indigo-500 ${activeCommentId === post.id ? "text-indigo-600" : ""}`}>
                                         <MessageCircle className="w-4.5 h-4.5" /> <span className="text-sm">{post.comments_count}</span>
                                     </button>
-                                    
-                                    <button onClick={(e) => {e.stopPropagation(); handleRepost(post)}} className="flex items-center gap-2 group hover:text-green-500">
-                                        <Repeat className="w-4.5 h-4.5" /> <span className="text-sm">0</span>
-                                    </button>
-                                    
-                                    <button onClick={(e) => {e.stopPropagation(); handleLike(post.id)}} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}>
-                                        <Heart className={`w-4.5 h-4.5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{post.likes_count}</span>
-                                    </button>
-                                    
+                                    <button onClick={(e) => {e.stopPropagation(); handleRepost(post)}} className="flex items-center gap-2 group hover:text-green-500"><Repeat className="w-4.5 h-4.5" /> <span className="text-sm">0</span></button>
+                                    <button onClick={(e) => {e.stopPropagation(); handleLike(post.id)}} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}><Heart className={`w-4.5 h-4.5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{post.likes_count}</span></button>
                                     <button className="flex items-center gap-2 group hover:text-indigo-500"><Share className="w-4.5 h-4.5" /></button>
                                 </div>
                             </div>
                         </div>
                     </article>
 
+                    {/* Inline Comment Box */}
                     {activeCommentId === post.id && (
                         <div className="px-6 pb-4 pl-[4.5rem] animate-in slide-in-from-top-2 duration-200">
                             <div className="flex gap-2 items-center bg-slate-100 rounded-2xl px-4 py-2">
@@ -274,6 +333,13 @@ export default function HomePage() {
                             <button onClick={() => handleFollow(u.id)} className="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-slate-800 transition-colors">Follow</button>
                         </div>
                     ))}
+                </div>
+            </div>
+            <div className="bg-slate-100/50 rounded-2xl border border-slate-100 p-4">
+                <h3 className="font-bold text-xl text-slate-900 mb-4 px-2">Trends for you</h3>
+                <div className="space-y-1">
+                    <div className="hover:bg-slate-200/50 p-2 rounded-xl cursor-pointer"><p className="font-bold text-slate-900">#VNUIS</p><p className="text-xs text-slate-500">12K posts</p></div>
+                    <div className="hover:bg-slate-200/50 p-2 rounded-xl cursor-pointer"><p className="font-bold text-slate-900">#FinalExam</p><p className="text-xs text-slate-500">5K posts</p></div>
                 </div>
             </div>
         </aside>

@@ -6,26 +6,6 @@ from .auth import token_required
 
 # ===== Comments =====
 
-@api_bp.post("/posts/<int:post_id>/comments")
-@token_required
-def create_comment(current_user: User, post_id: int):
-    post = Post.query.get_or_404(post_id)
-    data = request.get_json() or {}
-    body = (data.get("body") or "").strip()
-    if not body:
-        return jsonify({"error": "Comment cannot be empty"}), 400
-
-    comment = Comment(body=body, user=current_user, post=post)
-    db.session.add(comment)
-
-    if current_user.id != post.user_id:
-        notif = Notification(
-            user_id=post.user_id, actor_id=current_user.id, action="comment", post_id=post.id
-        )
-        db.session.add(notif)
-
-    db.session.commit()
-    return jsonify({"message": "Comment added"}), 201
 
 # ===== Likes =====
 
