@@ -1,6 +1,6 @@
 # backend/app.py
 
-from backend import create_app
+from . import create_app
 
 app = create_app()
 
