@@ -19,3 +19,14 @@ class Config:
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"
+
+# Ưu tiên lấy DATABASE_URL từ Render, nếu không có thì mới dùng MySQL local
+SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') 
+
+# Fix lỗi nhỏ của Render (Render dùng 'postgres://' nhưng thư viện Python cần 'postgresql://')
+if SQLALCHEMY_DATABASE_URI and SQLALCHEMY_DATABASE_URI.startswith("postgres://"):
+    SQLALCHEMY_DATABASE_URI = SQLALCHEMY_DATABASE_URI.replace("postgres://", "postgresql://", 1)
+
+# Nếu không có DATABASE_URL (tức là đang chạy local), thì dùng chuỗi MySQL cũ của bạn
+if not SQLALCHEMY_DATABASE_URI:
+    SQLALCHEMY_DATABASE_URI = f"mysql://{os.environ.get('MYSQL_USER')}:{os.environ.get('MYSQL_PASSWORD')}@..."
