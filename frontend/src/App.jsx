@@ -9,6 +9,10 @@ import HomePage from "./pages/HomePage";
 import ProfilePage from "./pages/ProfilePage";
 import EditProfilePage from "./pages/EditProfilePage";
 import PostDetailPage from "./pages/PostDetailPage"; // Đảm bảo file này đã được tạo
+import GlobalPage from "./pages/GlobalPage";
+import NotificationsPage from "./pages/NotificationsPage";
+import MessagesPage from "./pages/MessagesPage";
+import SearchPage from "./pages/SearchPage";
 
 // Component bảo vệ (chỉ cho phép vào khi đã đăng nhập)
 function ProtectedRoute({ children }) {
@@ -63,9 +67,14 @@ export default function App() {
           } 
         />
         {/* --------------------------------------------- */}
+        <Route path="/explore" element={<ProtectedRoute><GlobalPage /></ProtectedRoute>} />
+        <Route path="/notifications" element={<ProtectedRoute><NotificationsPage /></ProtectedRoute>} />
+        <Route path="/messages" element={<ProtectedRoute><MessagesPage /></ProtectedRoute>} />
 
         {/* Fallback: Nếu nhập link linh tinh thì về Home */}
         <Route path="*" element={<Navigate to="/" />} />
+        <Route path="/search" element={<ProtectedRoute><SearchPage /></ProtectedRoute>} />
+        
       </Routes>
     </BrowserRouter>
   );

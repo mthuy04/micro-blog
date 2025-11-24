@@ -13,3 +13,4 @@ from . import notifications
 from . import admin
 from . import uploads
 from . import users
+from . import messages

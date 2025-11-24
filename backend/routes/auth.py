@@ -69,6 +69,7 @@ def register():
     db.session.commit()
 
     token = generate_token(user)
+    username = user.email.split('@')[0]
 
     return (
         jsonify(

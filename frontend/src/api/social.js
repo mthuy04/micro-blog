@@ -1,5 +1,7 @@
 import api from "./client";
 
+// --- PROFILE & USER ---
+
 // Lấy thông tin user theo username
 export async function getProfile(username) {
   const res = await api.get(`/users/${username}`);
@@ -26,7 +28,8 @@ export async function updateAvatar(formData) {
   return res.data;
 }
 
-// Follow / Unfollow
+// --- FOLLOW SYSTEM ---
+
 export async function followUser(userId) {
   const res = await api.post(`/users/${userId}/follow`);
   return res.data;
@@ -40,4 +43,23 @@ export async function unfollowUser(userId) {
 export async function getSuggestions() {
     const res = await api.get("/users/suggestions");
     return res.data;
-  }
+}
+
+// --- NOTIFICATIONS ---
+
+export async function getNotifications() {
+    const res = await api.get("/notifications");
+    return res.data;
+}
+  
+export async function markRead(id) {
+    const res = await api.post(`/notifications/${id}/read`);
+    return res.data;
+}
+
+// --- SEARCH ---
+
+export async function searchSystem(query) {
+    const res = await api.get(`/search?q=${encodeURIComponent(query)}`);
+    return res.data;
+}

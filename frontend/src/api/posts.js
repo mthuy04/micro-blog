@@ -1,9 +1,9 @@
 import api from "./client";
 
-export async function getFeed(type = "for_you") {
-    const res = await api.get(`/posts/feed?type=${type}`);
+export async function getFeed(type = "for_you", page = 1) {
+    const res = await api.get(`/posts/feed?type=${type}&page=${page}`);
     return res.data;
-  }
+}
 
 // Cập nhật để nhận formData (gồm file)
 export async function createPost(formData) {
