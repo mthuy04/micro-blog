@@ -6,7 +6,7 @@ from .. import db
 from ..models import Post, User
 from . import api_bp
 from .auth import token_required
-from ..models import followers
+from ..models import followers, Like, Post, Notification
 
 def allowed_file(filename):
     return '.' in filename and \
@@ -89,18 +89,40 @@ def get_feed(current_user: User):
 
 @api_bp.post("/posts/<int:post_id>/likes")
 @token_required
-def toggle_like(current_user: User, post_id: int):
-    # ... (Giữ nguyên logic like cũ của bạn hoặc copy lại từ file social.py nếu cần)
-    from ..models import Like
+def toggle_like(current_user, post_id: int):
     post = Post.query.get_or_404(post_id)
     existing = Like.query.filter_by(user_id=current_user.id, post_id=post.id).first()
+    
     if existing:
         db.session.delete(existing)
         msg = "Unliked"
     else:
         like = Like(user=current_user, post=post)
         db.session.add(like)
+        
+        # --- THÊM ĐOẠN NÀY ĐỂ TẠO THÔNG BÁO ---
+        # Chỉ tạo thông báo nếu người like không phải là chủ bài viết
+        if post.user_id != current_user.id:
+            # Kiểm tra xem đã có thông báo like chưa để tránh spam
+            existing_notif = Notification.query.filter_by(
+                user_id=post.user_id,
+                actor_id=current_user.id,
+                action="like",
+                post_id=post.id
+            ).first()
+            
+            if not existing_notif:
+                notif = Notification(
+                    user_id=post.user_id, 
+                    actor_id=current_user.id, 
+                    action="like", 
+                    post_id=post.id
+                )
+                db.session.add(notif)
+        # ---------------------------------------
+
         msg = "Liked"
+
     db.session.commit()
     return jsonify({"message": msg})
 

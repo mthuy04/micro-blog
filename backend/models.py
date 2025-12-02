@@ -41,11 +41,15 @@ class User(db.Model):
         lazy="dynamic",
     )
 
+    # backend/models.py
+
     def set_password(self, password: str) -> None:
-        self.password_hash = generate_password_hash(password)
+        # THÊM tham số method='pbkdf2:sha256' để tránh lỗi scrypt
+        self.password_hash = generate_password_hash(password, method='pbkdf2:sha256')
 
     def check_password(self, password: str) -> bool:
         return check_password_hash(self.password_hash, password)
+
 
     def follow(self, user: "User") -> None:
         if not self.is_following(user):

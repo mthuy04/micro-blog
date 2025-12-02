@@ -11,6 +11,7 @@ from .auth import token_required
 
 # ===== Follow / Unfollow =====
 
+
 @api_bp.post("/users/<int:user_id>/follow")
 @token_required
 def follow_user(current_user: User, user_id: int):

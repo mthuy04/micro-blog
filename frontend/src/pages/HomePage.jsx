@@ -6,21 +6,19 @@ import { getSuggestions, followUser } from "../api/social";
 import { getCurrentUser } from "../api/client";
 import { 
   Image, Smile, Calendar, MapPin, 
-  MessageCircle, Repeat, Heart, Share, Search, X, Send,
+  MessageCircle, Repeat, Heart, Share, X, Send,
   MoreHorizontal, Trash2, Edit2, Check, ArrowDownCircle
 } from "lucide-react";
 import { getImageUrl } from "../utils/env";
 
 export default function HomePage() {
   const [posts, setPosts] = useState([]);
-  const [suggestions, setSuggestions] = useState([]); 
   const [feedType, setFeedType] = useState("for_you"); 
   
-  // --- THÊM STATE CHO PHÂN TRANG ---
+  // Phân trang
   const [page, setPage] = useState(1);
   const [hasMore, setHasMore] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
-  // ---------------------------------
 
   const [content, setContent] = useState("");
   const [imageFile, setImageFile] = useState(null);
@@ -37,7 +35,6 @@ export default function HomePage() {
   const currentUser = getCurrentUser();
   const navigate = useNavigate();
 
-  // 1. Hàm load dữ liệu (Xử lý cả load mới và load thêm)
   const loadPosts = useCallback(async (type, pageNum, isAppend = false) => {
     try {
       if (!isAppend) setLoading(true); 
@@ -60,18 +57,13 @@ export default function HomePage() {
     }
   }, []);
 
-  // 2. Khi đổi Feed Type -> Reset về trang 1
   useEffect(() => {
       setPage(1);
       setHasMore(true);
-      setPosts([]); // Clear cũ để tạo cảm giác load mới
+      setPosts([]); 
       loadPosts(feedType, 1, false);
-      
-      // Load suggestions (chỉ cần 1 lần hoặc khi đổi tab tuỳ ý)
-      getSuggestions().then(setSuggestions).catch(console.error);
   }, [feedType, loadPosts]);
 
-  // 3. Hàm xử lý nút Load More
   const handleLoadMore = () => {
       const nextPage = page + 1;
       setPage(nextPage);
@@ -85,7 +77,6 @@ export default function HomePage() {
     return () => URL.revokeObjectURL(objectUrl);
   }, [imageFile]);
 
-  // --- LOGIC CREATE POST ---
   async function handleCreatePost() {
     if (!content.trim() && !imageFile) return;
     setLoading(true);
@@ -94,9 +85,8 @@ export default function HomePage() {
       formData.append("content", content);
       if (imageFile) formData.append("image", imageFile);
 
-      const newPostRes = await createPost(formData);
+      await createPost(formData);
       
-      // Khi đăng bài mới, reload lại feed trang 1 luôn cho tươi mới
       setPage(1);
       loadPosts(feedType, 1, false);
       
@@ -116,18 +106,6 @@ export default function HomePage() {
         return p;
       }));
     } catch(err) { console.error(err); }
-  }
-
-  async function handleFollow(userId) {
-    try {
-        await followUser(userId);
-        setSuggestions(prev => prev.filter(u => u.id !== userId));
-        // Nếu đang ở tab following thì reload lại để thấy bài mới
-        if (feedType === "following") {
-            setPage(1);
-            loadPosts("following", 1, false);
-        }
-    } catch (err) { console.error(err); }
   }
 
   async function handleRepost(postToShare) {
@@ -338,7 +316,7 @@ export default function HomePage() {
                 </div>
             )})}
             
-            {/* --- NÚT LOAD MORE --- */}
+            {/* LOAD MORE BUTTON */}
             {hasMore && (
                 <div className="p-6 flex justify-center">
                     <button 
@@ -362,37 +340,7 @@ export default function HomePage() {
             )}
         </main>
 
-        {/* Right Sidebar */}
-        <aside className="hidden lg:block w-[350px] pl-8 pt-6 space-y-6 sticky top-0 h-screen overflow-y-auto pb-8">
-            <div className="relative group">
-                <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400"><Search className="w-5 h-5" /></div>
-                <input type="text" className="w-full pl-12 pr-4 py-3 bg-slate-100 border-transparent rounded-full text-sm font-medium outline-none" placeholder="Search Pulse" />
-            </div>
-            <div className="bg-slate-100/50 rounded-2xl border border-slate-100 p-4">
-                <h3 className="font-bold text-xl text-slate-900 mb-4 px-2">Who to follow</h3>
-                <div className="space-y-4">
-                    {suggestions.map((u) => (
-                        <div key={u.id} className="flex items-center justify-between px-2">
-                            <div className="flex items-center gap-3">
-                                <img src={getImageUrl(u.avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${u.username}`} className="w-10 h-10 rounded-full bg-white object-cover" alt="sugg" />
-                                <div>
-                                    <Link to={`/profile/${u.username}`} className="font-bold text-sm text-slate-900 hover:underline cursor-pointer">{u.name}</Link>
-                                    <p className="text-xs text-slate-500">@{u.username}</p>
-                                </div>
-                            </div>
-                            <button onClick={() => handleFollow(u.id)} className="bg-slate-900 text-white text-xs font-bold px-3 py-1.5 rounded-full hover:bg-slate-800 transition-colors">Follow</button>
-                        </div>
-                    ))}
-                </div>
-            </div>
-            <div className="bg-slate-100/50 rounded-2xl border border-slate-100 p-4">
-                <h3 className="font-bold text-xl text-slate-900 mb-4 px-2">Trends for you</h3>
-                <div className="space-y-1">
-                    <div className="hover:bg-slate-200/50 p-2 rounded-xl cursor-pointer"><p className="font-bold text-slate-900">#VNUIS</p><p className="text-xs text-slate-500">12K posts</p></div>
-                    <div className="hover:bg-slate-200/50 p-2 rounded-xl cursor-pointer"><p className="font-bold text-slate-900">#FinalExam</p><p className="text-xs text-slate-500">5K posts</p></div>
-                </div>
-            </div>
-        </aside>
+        {/* ĐÃ XÓA: Phần <aside> bị trùng lặp tại đây */}
     </MainLayout>
   );
 }

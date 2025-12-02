@@ -8,9 +8,9 @@ export async function getProfile(username) {
   return res.data;
 }
 
-// Lấy bài viết của user đó
-export async function getUserPosts(username) {
-  const res = await api.get(`/users/${username}/posts`);
+// Lấy bài viết của user (Hỗ trợ các tab: posts, replies, media, likes)
+export async function getUserPosts(username, tab = "posts") {
+  const res = await api.get(`/users/${username}/posts?tab=${tab}`);
   return res.data;
 }
 
@@ -54,6 +54,11 @@ export async function getNotifications() {
   
 export async function markRead(id) {
     const res = await api.post(`/notifications/${id}/read`);
+    return res.data;
+}
+
+export async function getUnreadCount() {
+    const res = await api.get("/notifications/count");
     return res.data;
 }
 

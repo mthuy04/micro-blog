@@ -44,11 +44,16 @@ def get_user_profile(current_user: User, username: str):
     })
 
 # Lấy bài viết của 1 user cụ thể
+from flask import request, jsonify
+from ..models import User, Post, Like, Comment
+from . import api_bp
+
 @api_bp.get("/users/<string:username>/posts")
 def get_user_posts(username: str):
+    # 1. Tìm user chủ profile
     target_user = None
-    users = User.query.all()
-    for u in users:
+    all_users = User.query.all() # Lấy all rồi lọc python để support logic username = email split
+    for u in all_users:
         if u.email.split('@')[0] == username:
             target_user = u
             break
@@ -56,10 +61,64 @@ def get_user_posts(username: str):
     if not target_user:
         return jsonify([]), 404
 
-    posts = Post.query.filter_by(user_id=target_user.id).order_by(Post.created_at.desc()).all()
-    
+    tab = request.args.get("tab", "posts")
     result = []
+
+    # --- LOGIC TAB REPLIES (Lấy comment + Bài gốc) ---
+    if tab == "replies":
+        comments = Comment.query.filter_by(user_id=target_user.id).order_by(Comment.created_at.desc()).all()
+        for c in comments:
+            original_post = Post.query.get(c.post_id)
+            
+            # Xử lý dữ liệu an toàn (phòng trường hợp bài gốc bị xóa)
+            reply_to_username = "unknown"
+            reply_to_author = "Unknown User"
+            reply_to_content = "Content unavailable"
+            
+            if original_post:
+                reply_to_content = original_post.content
+                if original_post.user:
+                    reply_to_author = original_post.user.name
+                    reply_to_username = original_post.user.email.split('@')[0]
+
+            result.append({
+                "id": c.post_id,
+                "content": c.body,
+                "image_url": None,
+                "created_at_human": c.created_at.strftime("%b %d"),
+                "author_name": target_user.name,
+                "author_username": username,
+                "author_avatar": target_user.avatar,
+                
+                # Dữ liệu quan trọng cho giao diện Reply
+                "is_reply": True,
+                "reply_to_author": reply_to_author,
+                "reply_to_username": reply_to_username,
+                "reply_to_content": reply_to_content
+            })
+        return jsonify(result)
+
+    # --- LOGIC CÁC TAB KHÁC (Posts, Media, Likes) ---
+    query = Post.query
+
+    if tab == "likes":
+        # Lấy TẤT CẢ bài viết mà user này đã like (bất kể bài của ai)
+        query = query.join(Like).filter(Like.user_id == target_user.id)
+    elif tab == "media":
+        # Lấy bài của user có ảnh
+        query = query.filter_by(user_id=target_user.id).filter(Post.image != None)
+    else:
+        # Mặc định: Posts (bài của chính user)
+        query = query.filter_by(user_id=target_user.id)
+
+    posts = query.order_by(Post.created_at.desc()).all()
+    
     for p in posts:
+        # Lấy username tác giả bài viết an toàn
+        p_username = "unknown"
+        if p.user:
+            p_username = p.user.email.split('@')[0]
+
         result.append({
             "id": p.id,
             "content": p.content,
@@ -67,9 +126,10 @@ def get_user_posts(username: str):
             "created_at_human": p.created_at.strftime("%b %d"),
             "likes_count": len(p.likes),
             "comments_count": len(p.comments),
-            "author_name": target_user.name,
-            "author_username": username,
-            "author_avatar": target_user.avatar
+            "author_name": p.user.name if p.user else "Unknown",
+            "author_username": p_username,
+            "author_avatar": p.user.avatar if p.user else None,
+            "is_reply": False
         })
     
     return jsonify(result)

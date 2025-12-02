@@ -38,3 +38,9 @@ def mark_notification_read(current_user: User, notif_id: int):
     notif.read_at = notif.read_at or db.func.now()
     db.session.commit()
     return jsonify({"message": "Marked as read"})
+
+@api_bp.get("/notifications/count")
+@token_required
+def count_unread_notifications(current_user):
+    count = Notification.query.filter_by(user_id=current_user.id, read_at=None).count()
+    return jsonify({"count": count})
