@@ -24,7 +24,7 @@ def create_app():
     
     CORS(app, resources={r"/api/*": {"origins": [
         "http://localhost:5173",               # Cho phép chạy dưới local
-        "https://ten-du-an-cua-ban.vercel.app" # <--- THAY LINK VERCEL CỦA BẠN VÀO ĐÂY
+        "https://micro-blog-1.onrender.com" # <--- THAY LINK VERCEL CỦA BẠN VÀO ĐÂY
     ]}}, supports_credentials=True)
     # =================================================
 
