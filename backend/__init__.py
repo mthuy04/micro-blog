@@ -1,5 +1,3 @@
-# backend/__init__.py
-
 import os
 from flask import Flask
 from flask_sqlalchemy import SQLAlchemy
@@ -12,7 +10,6 @@ from .config import Config  # lấy config MySQL, SECRET_KEY, ...
 db = SQLAlchemy()
 migrate = Migrate()
 
-
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
@@ -21,10 +18,15 @@ def create_app():
     db.init_app(app)
     migrate.init_app(app, db)
 
-    # ===== SỬA LẠI ĐOẠN NÀY =====
-    # Cho phép tất cả các nguồn (origins="*") để dev cho dễ, tránh lỗi CORS
-    CORS(app, resources={r"/api/*": {"origins": "*"}}, supports_credentials=True)
-    # ============================
+    # ===== ĐÃ CẬP NHẬT: CẤU HÌNH CORS CHO VERCEL =====
+    # Chỉ cho phép Frontend từ Localhost và Vercel gọi API
+    # Bạn cần thay 'https://ten-du-an-cua-ban.vercel.app' bằng link thực tế của bạn
+    
+    CORS(app, resources={r"/api/*": {"origins": [
+        "http://localhost:5173",               # Cho phép chạy dưới local
+        "https://ten-du-an-cua-ban.vercel.app" # <--- THAY LINK VERCEL CỦA BẠN VÀO ĐÂY
+    ]}}, supports_credentials=True)
+    # =================================================
 
     from . import models
 
@@ -33,6 +35,7 @@ def create_app():
     app.register_blueprint(api_bp, url_prefix="/api")
 
     # Dev local: tự tạo bảng nếu chưa có
+    # Lưu ý: Trên Render, nếu database đã có bảng rồi thì lệnh này sẽ được bỏ qua an toàn
     with app.app_context():
         db.create_all()
 
