@@ -25,7 +25,9 @@ export default function MainLayout({ children }) {
   const [unreadCount, setUnreadCount] = useState(0);
 
   // --- SỬA LOGIC USE EFFECT ---
-  useEffect(() => {
+  useEffect(() => {const interval = setInterval(() => {
+    getUnreadCount().then(data => setUnreadCount(data.count)).catch(console.error);
+}, 60000);
       // Chỉ chạy khi có userId (đã đăng nhập)
       if (userId) {
           // 1. Tải suggestions (Chỉ ở trang Home)
@@ -38,8 +40,8 @@ export default function MainLayout({ children }) {
           
           // 3. Interval: Cập nhật số thông báo mỗi 10s
           const interval = setInterval(() => {
-              getUnreadCount().then(data => setUnreadCount(data.count)).catch(console.error);
-          }, 10000); 
+            getUnreadCount().then(data => setUnreadCount(data.count)).catch(console.error);
+        }, 60000);
           
           return () => clearInterval(interval);
       }
@@ -151,7 +153,7 @@ export default function MainLayout({ children }) {
                     <input 
                         type="text" 
                         className="w-full pl-12 pr-4 py-3 bg-slate-100 border-transparent rounded-full text-sm font-medium outline-none focus:bg-white focus:ring-2 focus:ring-indigo-500/20 transition-all" 
-                        placeholder="Search Pulse" 
+                        placeholder="Search CampusTalk" 
                         value={keyword}
                         onChange={(e) => setKeyword(e.target.value)}
                         onKeyDown={handleSearch}
