@@ -1,4 +1,5 @@
 import os
+import ssl  # <--- BẮT BUỘC THÊM DÒNG NÀY
 from pathlib import Path
 
 BASE_DIR = Path(__file__).resolve().parent
@@ -12,22 +13,30 @@ class Config:
     # 2. Logic chọn Database:
     if database_url:
         # --- TRƯỜNG HỢP CHẠY TRÊN RENDER (CLOUD) ---
-        # Fix lỗi nhỏ nếu Render trả về postgres:// thay vì postgresql:// (phòng hờ)
+        
+        # Fix lỗi nhỏ nếu Render trả về postgres:// (phòng hờ)
         if database_url.startswith("postgres://"):
             database_url = database_url.replace("postgres://", "postgresql://", 1)
         
         SQLALCHEMY_DATABASE_URI = database_url
         
-        # Cấu hình SSL cho Aiven (Chỉ áp dụng khi URL chứa aivencloud)
+        # --- ĐOẠN CẤU HÌNH SSL MỚI (FIX LỖI) ---
         if "aivencloud" in database_url:
+            # Tạo một ngữ cảnh SSL: Có mã hóa nhưng KHÔNG kiểm tra chứng chỉ
+            ctx = ssl.create_default_context()
+            ctx.check_hostname = False
+            ctx.verify_mode = ssl.CERT_NONE
+
             SQLALCHEMY_ENGINE_OPTIONS = {
                 "connect_args": {
-                    "ssl": {"ca": "/etc/ssl/certs/ca-certificates.crt"}
+                    "ssl": ctx
                 }
             }
+        # ---------------------------------------
+
     else:
         # --- TRƯỜNG HỢP CHẠY LOCAL (XAMPP) ---
-        # Dùng lại cấu hình cũ của bạn để không bị lỗi khi dev ở nhà
+        # Giữ nguyên cấu hình cũ để dev ở nhà vẫn chạy được
         MYSQL_USER = "root"
         MYSQL_PASSWORD = ""
         MYSQL_HOST = "localhost"
