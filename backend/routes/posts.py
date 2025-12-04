@@ -1,36 +1,52 @@
 import os
-from uuid import uuid4
+# from uuid import uuid4  <-- Không cần dùng uuid nữa vì Cloudinary tự đặt tên
 from flask import request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from .. import db
 from ..models import Post, User
 from . import api_bp
 from .auth import token_required
-from ..models import followers, Like, Post, Notification
+from ..models import followers, Like, Post, Notification, Comment # Import đầy đủ model
+import cloudinary.uploader # <-- Quan trọng
 
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
+# ==========================================
+# 1. SỬA HÀM TẠO BÀI VIẾT (QUAN TRỌNG NHẤT)
+# ==========================================
 @api_bp.post("/posts")
 @token_required
 def create_post(current_user: User):
     content = request.form.get("content", "").strip()
-    if not content:
-        return jsonify({"error": "Content required"}), 400
+    # Nếu không có nội dung và cũng không có ảnh thì báo lỗi
+    if not content and 'image' not in request.files:
+        return jsonify({"error": "Content or image required"}), 400
 
     image_url = None
+    
+    # Kiểm tra xem có file ảnh được gửi lên không
     if 'image' in request.files:
         file = request.files['image']
-        if file and file.filename != '' and allowed_file(file.filename):
-            filename = secure_filename(file.filename)
-            ext = filename.rsplit('.', 1)[1].lower()
-            new_filename = f"{uuid4().hex}.{ext}"
-            upload_folder = os.path.join(current_app.root_path, "static", "uploads")
-            os.makedirs(upload_folder, exist_ok=True)
-            file.save(os.path.join(upload_folder, new_filename))
-            image_url = f"/static/uploads/{new_filename}"
+        if file and file.filename != '':
+            if allowed_file(file.filename):
+                try:
+                    # --- CODE CŨ (Đã Xóa) ---
+                    # filename = secure_filename(file.filename)
+                    # ... os.path.join ... file.save ...
+                    
+                    # --- CODE MỚI (Cloudinary) ---
+                    # Upload trực tiếp file lên Cloudinary
+                    upload_result = cloudinary.uploader.upload(file)
+                    # Lấy đường dẫn ảnh online (https://...)
+                    image_url = upload_result.get("secure_url")
+                except Exception as e:
+                    return jsonify({"error": f"Image upload failed: {str(e)}"}), 500
+            else:
+                return jsonify({"error": "File type not allowed"}), 400
 
+    # Lưu vào Database (image_url bây giờ là link Cloudinary)
     post = Post(content=content, image=image_url, user=current_user)
     db.session.add(post)
     db.session.commit()
@@ -41,16 +57,18 @@ def create_post(current_user: User):
         "image_url": image_url 
     }), 201
 
+# ==========================================
+# CÁC HÀM DƯỚI GIỮ NGUYÊN
+# ==========================================
+
 @api_bp.get("/posts/feed")
 @token_required
 def get_feed(current_user: User):
     page = int(request.args.get("page", 1))
-    feed_type = request.args.get("type", "for_you") # Lấy tham số type
+    feed_type = request.args.get("type", "for_you")
     per_page = 20
 
     if feed_type == "following":
-        # Logic: Chỉ lấy bài của người mình đang follow
-        # Join bảng posts với bảng followers
         pagination = (
             Post.query
             .join(followers, (followers.c.followed_id == Post.user_id))
@@ -59,7 +77,6 @@ def get_feed(current_user: User):
             .paginate(page=page, per_page=per_page, error_out=False)
         )
     else:
-        # Logic: For you (Lấy tất cả bài viết mới nhất hệ thống)
         pagination = Post.query.order_by(Post.created_at.desc()).paginate(
             page=page, per_page=per_page, error_out=False
         )
@@ -68,15 +85,10 @@ def get_feed(current_user: User):
         return {
             "id": p.id,
             "content": p.content,
-            "image_url": p.image,
+            "image_url": p.image, # Link này giờ là link Cloudinary
             "created_at": p.created_at.isoformat(),
             "author_name": p.user.name,
-            
-            # === SỬA DÒNG NÀY ===
-            # Xóa "p.user.username or", chỉ dùng email split
             "author_username": p.user.email.split('@')[0], 
-            # ====================
-            
             "author_avatar": p.user.avatar,
             "likes_count": len(p.likes),
             "comments_count": len(p.comments),
@@ -100,10 +112,7 @@ def toggle_like(current_user, post_id: int):
         like = Like(user=current_user, post=post)
         db.session.add(like)
         
-        # --- THÊM ĐOẠN NÀY ĐỂ TẠO THÔNG BÁO ---
-        # Chỉ tạo thông báo nếu người like không phải là chủ bài viết
         if post.user_id != current_user.id:
-            # Kiểm tra xem đã có thông báo like chưa để tránh spam
             existing_notif = Notification.query.filter_by(
                 user_id=post.user_id,
                 actor_id=current_user.id,
@@ -119,22 +128,18 @@ def toggle_like(current_user, post_id: int):
                     post_id=post.id
                 )
                 db.session.add(notif)
-        # ---------------------------------------
 
         msg = "Liked"
 
     db.session.commit()
     return jsonify({"message": msg})
 
-# 1. API Lấy chi tiết bài viết (Kèm comments)
 @api_bp.get("/posts/<int:post_id>")
 @token_required
 def get_post_detail(current_user: User, post_id: int):
     post = Post.query.get_or_404(post_id)
     
-    # Lấy danh sách comment của bài viết
     comments_data = []
-    # Sắp xếp comment mới nhất lên đầu (nếu muốn)
     sorted_comments = sorted(post.comments, key=lambda x: x.created_at, reverse=True)
     
     for c in sorted_comments:
@@ -158,10 +163,9 @@ def get_post_detail(current_user: User, post_id: int):
         "likes_count": len(post.likes),
         "comments_count": len(post.comments),
         "liked_by_me": any(l.user_id == current_user.id for l in post.likes),
-        "comments": comments_data # Trả về danh sách comment
+        "comments": comments_data
     })
 
-# 2. API Viết Comment
 @api_bp.post("/posts/<int:post_id>/comments")
 @token_required
 def create_comment(current_user: User, post_id: int):
@@ -173,13 +177,9 @@ def create_comment(current_user: User, post_id: int):
 
     post = Post.query.get_or_404(post_id)
     
-    # Import model Comment ở đây để tránh lỗi vòng lặp nếu chưa import ở đầu
-    from ..models import Comment, Notification
-    
     comment = Comment(body=body, user=current_user, post=post)
     db.session.add(comment)
     
-    # Tạo thông báo (nếu người comment không phải chủ bài viết)
     if post.user_id != current_user.id:
         notif = Notification(
             user_id=post.user_id, 
@@ -198,7 +198,6 @@ def create_comment(current_user: User, post_id: int):
 def update_post(current_user: User, post_id: int):
     post = Post.query.get_or_404(post_id)
     
-    # Kiểm tra quyền chính chủ
     if post.user_id != current_user.id:
         return jsonify({"error": "Forbidden"}), 403
 
@@ -218,13 +217,13 @@ def update_post(current_user: User, post_id: int):
 def delete_post_api(current_user: User, post_id: int):
     post = Post.query.get_or_404(post_id)
     
-    # Kiểm tra quyền chính chủ hoặc Admin
     if post.user_id != current_user.id and not current_user.is_admin:
         return jsonify({"error": "Forbidden"}), 403
 
-    # (Tuỳ chọn) Nếu muốn xóa cả ảnh trên server thì thêm logic os.remove ở đây
+    # Lưu ý: Việc xóa ảnh trên Cloudinary cần thêm logic destroy nếu muốn, 
+    # nhưng không bắt buộc để code chạy.
     
     db.session.delete(post)
     db.session.commit()
     
-    return jsonify({"message": "Post deleted"})
+    return jsonify({"message": "Post updated"})

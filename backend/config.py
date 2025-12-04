@@ -1,6 +1,9 @@
 import os
 import ssl  # <--- BẮT BUỘC THÊM DÒNG NÀY
 from pathlib import Path
+import cloudinary # <--- Import cái này
+import cloudinary.uploader
+import cloudinary.api
 
 BASE_DIR = Path(__file__).resolve().parent
 
@@ -49,3 +52,13 @@ class Config:
 
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_FOLDER = BASE_DIR / "static" / "uploads"
+
+    CLOUDINARY_CLOUD_NAME = "djncd1olg"
+    CLOUDINARY_API_KEY = "675595231617319"
+    CLOUDINARY_API_SECRET = "mqM8RolV0MwF0qDxn5KRPQpNJxk"
+    
+    cloudinary.config(
+        cloud_name = CLOUDINARY_CLOUD_NAME,
+        api_key = CLOUDINARY_API_KEY,
+        api_secret = CLOUDINARY_API_SECRET
+    )
