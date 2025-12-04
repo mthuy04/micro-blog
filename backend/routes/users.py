@@ -1,20 +1,18 @@
 from flask import request, jsonify, current_app
 from .. import db
-from ..models import User, Post
+from ..models import User, Post, Like, Comment, followers
 from . import api_bp
 from .auth import token_required
 import os
 from werkzeug.utils import secure_filename
 from uuid import uuid4
 from sqlalchemy import func 
-from ..models import followers
+import cloudinary.uploader # <--- THÊM DÒNG NÀY
 
 # Lấy thông tin Profile người khác
 @api_bp.get("/users/<string:username>")
 @token_required
 def get_user_profile(current_user: User, username: str):
-    # ... (giữ nguyên đoạn tìm target_user) ...
-    # (Logic tìm user cũ của bạn)
     target_user = None
     users = User.query.all()
     for u in users:
@@ -37,22 +35,14 @@ def get_user_profile(current_user: User, username: str):
         "followers_count": target_user.followers.count(),
         "following_count": target_user.following.count(),
         "is_following": is_following,
-        
-        # === THÊM DÒNG NÀY ===
         "joined_date": target_user.created_at.strftime("Joined %B %Y") 
-        # =====================
     })
 
 # Lấy bài viết của 1 user cụ thể
-from flask import request, jsonify
-from ..models import User, Post, Like, Comment
-from . import api_bp
-
 @api_bp.get("/users/<string:username>/posts")
 def get_user_posts(username: str):
-    # 1. Tìm user chủ profile
     target_user = None
-    all_users = User.query.all() # Lấy all rồi lọc python để support logic username = email split
+    all_users = User.query.all() 
     for u in all_users:
         if u.email.split('@')[0] == username:
             target_user = u
@@ -64,13 +54,10 @@ def get_user_posts(username: str):
     tab = request.args.get("tab", "posts")
     result = []
 
-    # --- LOGIC TAB REPLIES (Lấy comment + Bài gốc) ---
     if tab == "replies":
         comments = Comment.query.filter_by(user_id=target_user.id).order_by(Comment.created_at.desc()).all()
         for c in comments:
             original_post = Post.query.get(c.post_id)
-            
-            # Xử lý dữ liệu an toàn (phòng trường hợp bài gốc bị xóa)
             reply_to_username = "unknown"
             reply_to_author = "Unknown User"
             reply_to_content = "Content unavailable"
@@ -89,8 +76,6 @@ def get_user_posts(username: str):
                 "author_name": target_user.name,
                 "author_username": username,
                 "author_avatar": target_user.avatar,
-                
-                # Dữ liệu quan trọng cho giao diện Reply
                 "is_reply": True,
                 "reply_to_author": reply_to_author,
                 "reply_to_username": reply_to_username,
@@ -98,23 +83,18 @@ def get_user_posts(username: str):
             })
         return jsonify(result)
 
-    # --- LOGIC CÁC TAB KHÁC (Posts, Media, Likes) ---
     query = Post.query
 
     if tab == "likes":
-        # Lấy TẤT CẢ bài viết mà user này đã like (bất kể bài của ai)
         query = query.join(Like).filter(Like.user_id == target_user.id)
     elif tab == "media":
-        # Lấy bài của user có ảnh
         query = query.filter_by(user_id=target_user.id).filter(Post.image != None)
     else:
-        # Mặc định: Posts (bài của chính user)
         query = query.filter_by(user_id=target_user.id)
 
     posts = query.order_by(Post.created_at.desc()).all()
     
     for p in posts:
-        # Lấy username tác giả bài viết an toàn
         p_username = "unknown"
         if p.user:
             p_username = p.user.email.split('@')[0]
@@ -141,11 +121,12 @@ def update_profile(current_user: User):
     data = request.get_json()
     current_user.name = data.get("full_name", current_user.name)
     current_user.bio = data.get("bio", current_user.bio)
-    # Thêm các trường khác nếu DB có
     db.session.commit()
     return jsonify({"message": "Updated"})
 
-# Upload Avatar
+# ========================================================
+# HÀM UPLOAD AVATAR - ĐÃ SỬA DÙNG CLOUDINARY
+# ========================================================
 @api_bp.post("/users/avatar")
 @token_required
 def upload_avatar(current_user: User):
@@ -156,19 +137,24 @@ def upload_avatar(current_user: User):
     if file.filename == '':
         return jsonify({"error": "No selected file"}), 400
 
-    filename = secure_filename(file.filename)
-    ext = filename.rsplit('.', 1)[1].lower()
-    new_name = f"avatar_{current_user.id}_{uuid4().hex[:8]}.{ext}"
-    
-    save_path = os.path.join(current_app.root_path, "static", "avatars")
-    os.makedirs(save_path, exist_ok=True)
-    file.save(os.path.join(save_path, new_name))
-    
-    url = f"/static/avatars/{new_name}"
-    current_user.avatar = url
-    db.session.commit()
-    
-    return jsonify({"url": url})
+    # Kiểm tra file hợp lệ (dùng hàm từ module khác hoặc viết lại đơn giản)
+    if not ('.' in file.filename and file.filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}):
+        return jsonify({"error": "File type not allowed"}), 400
+
+    try:
+        # --- CODE MỚI: Upload lên Cloudinary ---
+        upload_result = cloudinary.uploader.upload(file)
+        url = upload_result.get("secure_url")
+        
+        # --- Cập nhật Database ---
+        current_user.avatar = url
+        db.session.commit()
+        
+        return jsonify({"url": url})
+        
+    except Exception as e:
+        print(f"Cloudinary Avatar Error: {e}")
+        return jsonify({"error": "Avatar upload failed"}), 500
 
 @api_bp.get("/users/suggestions")
 @token_required
@@ -184,12 +170,7 @@ def get_suggestions(current_user: User):
         {
             "id": u.id,
             "name": u.name,
-            
-            # === SỬA DÒNG NÀY ===
-            # Xóa "u.username or"
             "username": u.email.split('@')[0],
-            # ====================
-            
             "avatar": u.avatar
         }
         for u in suggestions

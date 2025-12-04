@@ -2,47 +2,39 @@ import os
 from flask import request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from .. import db
-from ..models import Post, User, Like, followers, Notification, Comment
+from ..models import Post, User, followers, Like, Notification, Comment
 from . import api_bp
 from .auth import token_required
-import cloudinary.uploader # <--- Quan trọng: Import thư viện Cloudinary
+import cloudinary.uploader  # <--- BẮT BUỘC IMPORT
 
-# Hàm kiểm tra file hợp lệ
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
-# =======================================================
-# 1. API ĐĂNG BÀI VIẾT MỚI (Đã sửa để dùng Cloudinary)
-# =======================================================
 @api_bp.post("/posts")
 @token_required
 def create_post(current_user: User):
     content = request.form.get("content", "").strip()
-    
-    # Bắt lỗi: Phải có nội dung HOẶC có ảnh
     if not content and 'image' not in request.files:
         return jsonify({"error": "Content or image required"}), 400
 
     image_url = None
-    
-    # Nếu có ảnh -> Upload lên Cloudinary
     if 'image' in request.files:
         file = request.files['image']
         if file and file.filename != '':
             if allowed_file(file.filename):
                 try:
-                    # Gửi file lên Cloudinary
+                    # --- THAY ĐỔI TẠI ĐÂY ---
+                    # Upload lên Cloudinary thay vì lưu vào ổ cứng
                     upload_result = cloudinary.uploader.upload(file)
-                    # Lấy link ảnh online (https://...)
-                    image_url = upload_result.get("secure_url")
+                    image_url = upload_result.get("secure_url") 
+                    # ------------------------
                 except Exception as e:
-                    print(f"Cloudinary Upload Error: {e}")
+                    print(f"Error uploading post image: {e}")
                     return jsonify({"error": "Image upload failed"}), 500
             else:
                 return jsonify({"error": "File type not allowed"}), 400
 
-    # Lưu bài viết vào Database (image_url là link Cloudinary)
     post = Post(content=content, image=image_url, user=current_user)
     db.session.add(post)
     db.session.commit()
@@ -52,48 +44,6 @@ def create_post(current_user: User):
         "id": post.id, 
         "image_url": image_url 
     }), 201
-
-# =======================================================
-# 2. API CẬP NHẬT AVATAR & INFO (Thêm mới)
-# =======================================================
-# Đây là phần bạn đang thiếu, khiến việc đổi avatar bị lỗi
-@api_bp.put("/users/update") 
-@token_required
-def update_user_profile(current_user: User):
-    # 1. Cập nhật thông tin text (Tên, Tiểu sử)
-    name = request.form.get("name")
-    bio = request.form.get("bio")
-    
-    if name: current_user.name = name
-    if bio: current_user.bio = bio
-
-    # 2. Cập nhật Avatar (Upload lên Cloudinary)
-    if 'avatar' in request.files:
-        file = request.files['avatar']
-        if file and file.filename != '':
-            if allowed_file(file.filename):
-                try:
-                    upload_result = cloudinary.uploader.upload(file)
-                    # Lưu link avatar mới vào DB
-                    current_user.avatar = upload_result.get("secure_url")
-                except Exception as e:
-                    print(f"Avatar Upload Error: {e}")
-                    return jsonify({"error": "Avatar upload failed"}), 500
-
-    db.session.commit()
-    
-    return jsonify({
-        "message": "Profile updated",
-        "user": {
-            "name": current_user.name,
-            "bio": current_user.bio,
-            "avatar": current_user.avatar
-        }
-    })
-
-# =======================================================
-# 3. CÁC API KHÁC (FEED, LIKE, COMMENT...) - GIỮ NGUYÊN
-# =======================================================
 
 @api_bp.get("/posts/feed")
 @token_required
@@ -209,6 +159,8 @@ def create_comment(current_user: User, post_id: int):
         return jsonify({"error": "Comment empty"}), 400
 
     post = Post.query.get_or_404(post_id)
+    
+    from ..models import Comment # Import ở đây để tránh circular import nếu cần
     
     comment = Comment(body=body, user=current_user, post=post)
     db.session.add(comment)

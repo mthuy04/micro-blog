@@ -5,6 +5,7 @@ from werkzeug.utils import secure_filename
 from . import api_bp
 from .auth import token_required
 from ..models import User
+import cloudinary.uploader # <--- THÊM DÒNG NÀY
 
 ALLOWED_EXTENSIONS = {"png", "jpg", "jpeg", "gif"}
 
@@ -27,24 +28,20 @@ def upload_image(current_user: User):
     if not allowed_file(file.filename):
         return jsonify({"error": "Unsupported file type"}), 400
 
-    upload_type = request.form.get("type", "post")
-    folder = "avatars" if upload_type == "avatar" else "uploads"
+    try:
+        # --- CODE MỚI: Upload lên Cloudinary ---
+        upload_result = cloudinary.uploader.upload(file)
+        url = upload_result.get("secure_url")
 
-    filename = secure_filename(file.filename)
-    ext = filename.rsplit(".", 1)[1].lower()
-    new_name = f"{uuid4().hex}.{ext}"
+        # Nếu request có type=avatar, cập nhật luôn user (dự phòng)
+        upload_type = request.form.get("type", "post")
+        if upload_type == "avatar":
+            current_user.avatar = url
+            from .. import db
+            db.session.commit()
 
-    save_dir = os.path.join(current_app.root_path, "static", folder)
-    os.makedirs(save_dir, exist_ok=True)
-    file.save(os.path.join(save_dir, new_name))
+        return jsonify({"url": url})
 
-    url = f"/static/{folder}/{new_name}"
-
-    # Nếu là avatar, cập nhật profile luôn
-    if upload_type == "avatar":
-        current_user.avatar = url
-
-    from .. import db
-    db.session.commit()
-
-    return jsonify({"url": url})
+    except Exception as e:
+        print(f"Upload Error: {e}")
+        return jsonify({"error": "Upload failed"}), 500
