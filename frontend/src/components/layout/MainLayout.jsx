@@ -87,7 +87,7 @@ export default function MainLayout({ children }) {
       {/* Mobile Top Bar */}
       <div className="lg:hidden fixed top-0 w-full bg-white/90 backdrop-blur-md border-b border-slate-200 z-50 px-4 py-3 flex justify-between items-center">
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white"><Zap className="w-5 h-5" /></div>
-          <h1 className="font-bold text-lg">Pulse</h1>
+          <h1 className="font-bold text-lg">CampusTalk</h1>
           <Link to={profileLink}>
             <div className="w-8 h-8 bg-slate-200 rounded-full overflow-hidden border border-slate-200"><img src={userAvatar} className="w-full h-full object-cover" alt="avatar" /></div>
           </Link>
@@ -99,7 +99,7 @@ export default function MainLayout({ children }) {
         <aside className="hidden lg:flex w-72 flex-col fixed left-[max(0px,calc(50%-40rem))] top-0 h-screen border-r border-slate-200/60 bg-white/50 backdrop-blur-sm z-40 pt-6 px-6 pb-8">
              <div className="flex items-center gap-3 mb-10 px-2">
                 <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg"><Zap className="w-6 h-6" /></div>
-                <span className="text-2xl font-extrabold tracking-tight text-slate-900">GROUP 3</span>
+                <span className="text-2xl font-extrabold tracking-tight text-slate-900">CAMPUSTALK</span>
              </div>
              <nav className="flex-1 space-y-2">
                 <Link to="/home" className={getLinkClass("/home")}><Home className="w-7 h-7" /><span>Home</span></Link>

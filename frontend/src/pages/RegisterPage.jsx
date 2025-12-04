@@ -54,7 +54,7 @@ export default function RegisterPage() {
           <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
             <Zap className="w-6 h-6" />
           </div>
-          <span className="text-2xl font-bold tracking-tight text-slate-900">GROUP 3</span>
+          <span className="text-2xl font-bold tracking-tight text-slate-900">CAMPUSTALK</span>
         </div>
         <p className="text-slate-500 font-medium">Join the conversation today.</p>
       </div>

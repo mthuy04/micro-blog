@@ -15,7 +15,7 @@ export default function LandingPage() {
             <Zap className="w-6 h-6" />
           </div>
           <span className="text-xl font-bold tracking-tight text-slate-900">
-            GROUP 3
+            CAMPUSTALK
           </span>
         </div>
 

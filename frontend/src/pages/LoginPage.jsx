@@ -41,7 +41,7 @@ export default function LoginPage() {
           <div className="w-8 h-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
             <Zap className="w-5 h-5" />
           </div>
-          <span className="text-xl font-bold tracking-tight text-slate-900">GROUP 3</span>
+          <span className="text-xl font-bold tracking-tight text-slate-900">CAMPUSTALK</span>
         </div>
 
         <div className="max-w-sm w-full mx-auto">

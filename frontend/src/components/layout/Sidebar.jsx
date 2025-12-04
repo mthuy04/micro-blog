@@ -17,7 +17,7 @@ export default function Sidebar({ onLogout, unreadCount = 0 }) {
 
   return (
     <aside className="hidden md:flex md:flex-col w-64 border-r bg-white p-4">
-      <div className="mb-6 px-4 text-2xl font-bold text-blue-600">GROUP 3</div>
+      <div className="mb-6 px-4 text-2xl font-bold text-blue-600">CAMPUSTALK</div>
       {menuItem("/home", "Home")}
       {menuItem("/home/global", "Global")}
       <div className="relative">
