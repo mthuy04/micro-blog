@@ -2,7 +2,7 @@
 import axios from "axios";
 
 // ĐỔI "localhost" -> "127.0.0.1"
-const API_BASE_URL = "http://127.0.0.1:5000/api";
+const API_BASE_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:5000/api";
 
 const TOKEN_KEY = "accessToken";
 const USER_KEY = "currentUser";
