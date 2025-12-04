@@ -2,46 +2,47 @@ import os
 from flask import request, jsonify, current_app
 from werkzeug.utils import secure_filename
 from .. import db
-from ..models import Post, User, Like, followers, Notification, Comment # Import đầy đủ
+from ..models import Post, User, Like, followers, Notification, Comment
 from . import api_bp
 from .auth import token_required
-import cloudinary.uploader # <--- BẮT BUỘC CÓ
+import cloudinary.uploader # <--- Quan trọng: Import thư viện Cloudinary
 
-# Hàm kiểm tra đuôi file (giữ nguyên)
+# Hàm kiểm tra file hợp lệ
 def allowed_file(filename):
     return '.' in filename and \
            filename.rsplit('.', 1)[1].lower() in {'png', 'jpg', 'jpeg', 'gif'}
 
-# ==========================================
-# 1. API TẠO BÀI VIẾT (Đã sửa sang Cloudinary)
-# ==========================================
+# =======================================================
+# 1. API ĐĂNG BÀI VIẾT MỚI (Đã sửa để dùng Cloudinary)
+# =======================================================
 @api_bp.post("/posts")
 @token_required
 def create_post(current_user: User):
     content = request.form.get("content", "").strip()
     
-    # Cho phép đăng bài chỉ có ảnh (content rỗng cũng được, miễn là có ảnh)
+    # Bắt lỗi: Phải có nội dung HOẶC có ảnh
     if not content and 'image' not in request.files:
         return jsonify({"error": "Content or image required"}), 400
 
     image_url = None
     
-    # Xử lý upload ảnh lên Cloudinary
+    # Nếu có ảnh -> Upload lên Cloudinary
     if 'image' in request.files:
         file = request.files['image']
         if file and file.filename != '':
             if allowed_file(file.filename):
                 try:
-                    # Gửi thẳng lên Cloudinary
+                    # Gửi file lên Cloudinary
                     upload_result = cloudinary.uploader.upload(file)
-                    # Lấy link https://... lưu vào DB
+                    # Lấy link ảnh online (https://...)
                     image_url = upload_result.get("secure_url")
                 except Exception as e:
-                    print(f"Cloudinary Error: {e}") # In lỗi ra log để debug
+                    print(f"Cloudinary Upload Error: {e}")
                     return jsonify({"error": "Image upload failed"}), 500
             else:
                 return jsonify({"error": "File type not allowed"}), 400
 
+    # Lưu bài viết vào Database (image_url là link Cloudinary)
     post = Post(content=content, image=image_url, user=current_user)
     db.session.add(post)
     db.session.commit()
@@ -52,44 +53,47 @@ def create_post(current_user: User):
         "image_url": image_url 
     }), 201
 
-# ==========================================
-# 2. API ĐỔI AVATAR (Thêm mới cho bạn)
-# ==========================================
-# Bạn cần thêm route này để sửa lỗi "đổi avatar bị lỗi"
-@api_bp.put("/users/avatar")
+# =======================================================
+# 2. API CẬP NHẬT AVATAR & INFO (Thêm mới)
+# =======================================================
+# Đây là phần bạn đang thiếu, khiến việc đổi avatar bị lỗi
+@api_bp.put("/users/update") 
 @token_required
-def update_avatar(current_user: User):
-    if 'avatar' not in request.files:
-        return jsonify({"error": "No file part"}), 400
-        
-    file = request.files['avatar']
+def update_user_profile(current_user: User):
+    # 1. Cập nhật thông tin text (Tên, Tiểu sử)
+    name = request.form.get("name")
+    bio = request.form.get("bio")
     
-    if file.filename == '':
-        return jsonify({"error": "No selected file"}), 400
-        
-    if file and allowed_file(file.filename):
-        try:
-            # Upload lên Cloudinary
-            upload_result = cloudinary.uploader.upload(file)
-            new_avatar_url = upload_result.get("secure_url")
-            
-            # Cập nhật vào User hiện tại
-            current_user.avatar = new_avatar_url
-            db.session.commit()
-            
-            return jsonify({
-                "message": "Avatar updated successfully",
-                "avatar_url": new_avatar_url
-            })
-        except Exception as e:
-            print(f"Avatar Upload Error: {e}")
-            return jsonify({"error": "Failed to upload avatar"}), 500
-            
-    return jsonify({"error": "File type not allowed"}), 400
+    if name: current_user.name = name
+    if bio: current_user.bio = bio
 
-# ==========================================
-# 3. CÁC API KHÁC (FEED, LIKE...) - GIỮ NGUYÊN
-# ==========================================
+    # 2. Cập nhật Avatar (Upload lên Cloudinary)
+    if 'avatar' in request.files:
+        file = request.files['avatar']
+        if file and file.filename != '':
+            if allowed_file(file.filename):
+                try:
+                    upload_result = cloudinary.uploader.upload(file)
+                    # Lưu link avatar mới vào DB
+                    current_user.avatar = upload_result.get("secure_url")
+                except Exception as e:
+                    print(f"Avatar Upload Error: {e}")
+                    return jsonify({"error": "Avatar upload failed"}), 500
+
+    db.session.commit()
+    
+    return jsonify({
+        "message": "Profile updated",
+        "user": {
+            "name": current_user.name,
+            "bio": current_user.bio,
+            "avatar": current_user.avatar
+        }
+    })
+
+# =======================================================
+# 3. CÁC API KHÁC (FEED, LIKE, COMMENT...) - GIỮ NGUYÊN
+# =======================================================
 
 @api_bp.get("/posts/feed")
 @token_required
