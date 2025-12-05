@@ -2,6 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { getFeed, createPost, toggleLike, createComment, deletePost, updatePost } from "../api/posts";
+import { getSuggestions, followUser } from "../api/social";
 import { getCurrentUser } from "../api/client";
 import { 
   Image, Smile, Calendar, MapPin, 
@@ -108,13 +109,15 @@ export default function HomePage() {
   }
 
   async function handleRepost(postToShare) {
+    // THÊM: Hỏi caption
     const caption = window.prompt("Add a comment to your repost (optional):");
-    if (caption === null) return; 
+    if (caption === null) return; // User ấn Cancel thì thôi không repost nữa
 
     try {
         const repostData = {
             original_author: postToShare.author_name,
             original_username: postToShare.author_username,
+            // Lấy nội dung sạch (đề phòng repost chồng repost)
             original_content: postToShare.content.split("|||REPOST::")[0], 
             original_avatar: postToShare.author_avatar,
             original_image: postToShare.image_url
@@ -164,57 +167,61 @@ export default function HomePage() {
   }
 
   const renderPostContent = (post) => {
-    if (editingPostId === post.id) {
-        return (
-            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                <textarea className="w-full p-3 border border-indigo-300 rounded-xl bg-slate-50" rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} />
-                <div className="flex gap-2 mt-2">
-                    <button onClick={() => saveEdit(post.id)} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-full">Save</button>
-                    <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">Cancel</button>
-                </div>
-            </div>
-        );
-    }
+      // Logic Edit (Giữ nguyên)
+      if (editingPostId === post.id) {
+          // ... (code edit cũ)
+          return (
+              <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                  <textarea className="w-full p-3 border border-indigo-300 rounded-xl bg-slate-50" rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+                  <div className="flex gap-2 mt-2">
+                      <button onClick={() => saveEdit(post.id)} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-full">Save</button>
+                      <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">Cancel</button>
+                  </div>
+              </div>
+          );
+      }
 
-    let caption = post.content;
-    let repostData = null;
+      let caption = post.content;
+      let repostData = null;
 
-    if (post.content.includes("|||REPOST::")) {
-        const parts = post.content.split("|||REPOST::");
-        caption = parts[0];
-        try { repostData = JSON.parse(parts[1]); } catch {}
-    } 
-    else if (post.content.startsWith("REPOST::")) {
-        caption = "";
-        try { repostData = JSON.parse(post.content.replace("REPOST::", "")); } catch {}
-    }
+      // PARSE REPOST MỚI
+      if (post.content.includes("|||REPOST::")) {
+          const parts = post.content.split("|||REPOST::");
+          caption = parts[0];
+          try { repostData = JSON.parse(parts[1]); } catch {}
+      } 
+      // PARSE REPOST CŨ (Fallback)
+      else if (post.content.startsWith("REPOST::")) {
+          caption = "";
+          try { repostData = JSON.parse(post.content.replace("REPOST::", "")); } catch {}
+      }
 
-    return (
-        <div className="mt-1">
-            {caption && <p className="text-slate-900 text-[15px] mb-3 whitespace-pre-wrap">{caption}</p>}
-            
-            {repostData && (
-                <div className="border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
-                     onClick={(e) => {
-                         e.stopPropagation();
-                         navigate(`/profile/${repostData.original_username}`);
-                     }}>
-                    <div className="flex items-center gap-2 mb-2">
-                        <img src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} className="w-5 h-5 rounded-full" alt="orig" />
-                        <span className="font-bold text-sm text-slate-900">{repostData.original_author}</span>
-                        <span className="text-slate-500 text-xs">@{repostData.original_username}</span>
-                    </div>
-                    <p className="text-sm text-slate-800 mb-2">{repostData.original_content}</p>
-                    {repostData.original_image && (
-                        <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50">
-                            <img src={getImageUrl(repostData.original_image)} className="w-full h-full object-cover" alt="orig content" />
-                        </div>
-                    )}
-                </div>
-            )}
-        </div>
-    );
-};
+      return (
+          <div className="mt-1">
+              {caption && <p className="text-slate-900 text-[15px] mb-3 whitespace-pre-wrap">{caption}</p>}
+              
+              {repostData && (
+                  <div className="border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                       onClick={(e) => {
+                           e.stopPropagation();
+                           navigate(`/profile/${repostData.original_username}`);
+                       }}>
+                      <div className="flex items-center gap-2 mb-2">
+                          <img src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} className="w-5 h-5 rounded-full" alt="orig" />
+                          <span className="font-bold text-sm text-slate-900">{repostData.original_author}</span>
+                          <span className="text-slate-500 text-xs">@{repostData.original_username}</span>
+                      </div>
+                      <p className="text-sm text-slate-800 mb-2">{repostData.original_content}</p>
+                      {repostData.original_image && (
+                          <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50">
+                              <img src={getImageUrl(repostData.original_image)} className="w-full h-full object-cover" alt="orig content" />
+                          </div>
+                      )}
+                  </div>
+              )}
+          </div>
+      );
+  };
   const goToDetail = (e, postId) => {
       if (editingPostId === postId) return;
       navigate(`/post/${postId}`);
@@ -353,8 +360,8 @@ export default function HomePage() {
                 </div>
             )}
         </main>
+
+        {/* ĐÃ XÓA: Phần <aside> bị trùng lặp tại đây */}
     </MainLayout>
   );
 }
-
-
