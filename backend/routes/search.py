@@ -10,19 +10,38 @@ def search():
     if not query:
         return jsonify({"users": [], "posts": []})
 
-    # Tìm User (theo name hoặc username - lấy từ email)
-    # Lưu ý: username logic là email.split('@')[0]
-    users = User.query.filter(
-        or_(
-            User.name.ilike(f"%{query}%"),
-            User.email.ilike(f"%{query}%")
-        )
-    ).limit(10).all()
+    users = []
+    posts = []
 
-    # Tìm Post (theo content)
-    posts = Post.query.filter(
-        Post.content.ilike(f"%{query}%")
-    ).order_by(Post.created_at.desc()).limit(20).all()
+    # LOGIC TÌM KIẾM THÔNG MINH
+    if query.startswith("#"):
+        # 1. Nếu bắt đầu bằng # -> Chỉ tìm bài viết chứa hashtag đó
+        tag = query # Giữ nguyên cả dấu #
+        posts = Post.query.filter(Post.content.ilike(f"%{tag}%"))\
+                          .order_by(Post.created_at.desc()).limit(30).all()
+    
+    elif query.startswith("@"):
+        # 2. Nếu bắt đầu bằng @ -> Chỉ tìm User theo username/email
+        username_query = query[1:] # Bỏ dấu @
+        users = User.query.filter(
+            or_(
+                User.email.ilike(f"%{username_query}%"),
+                User.name.ilike(f"%{username_query}%")
+            )
+        ).limit(10).all()
+        
+    else:
+        # 3. Tìm kiếm hỗn hợp (Mặc định)
+        users = User.query.filter(
+            or_(
+                User.name.ilike(f"%{query}%"),
+                User.email.ilike(f"%{query}%")
+            )
+        ).limit(5).all()
+
+        posts = Post.query.filter(
+            Post.content.ilike(f"%{query}%")
+        ).order_by(Post.created_at.desc()).limit(20).all()
 
     # Serialize kết quả
     users_data = [{

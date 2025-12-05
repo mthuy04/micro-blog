@@ -1,27 +1,35 @@
 import { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
-import MainLayout from "../components/layout/MainLayout";
-import { getProfile, getUserPosts, followUser, unfollowUser } from "../api/social";
-import { getCurrentUser } from "../api/client";
-import { getImageUrl } from "../utils/env";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import MainLayout from "./MainLayout";
+import { getProfile, getUserPosts, followUser, unfollowUser } from "./social";
+import { toggleLike, deletePost, createPost, createComment } from "./posts"; // Thêm API actions
+import { getCurrentUser } from "./client";
+import { getImageUrl } from "./env";
 import { 
   ArrowLeft, MapPin, Calendar, 
-  MessageCircle, Repeat, Heart, Share2 
+  MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Trash2, Send
 } from "lucide-react";
 
 export default function ProfilePage() {
   const { username } = useParams();
+  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [posts, setPosts] = useState([]);
   const [activeTab, setActiveTab] = useState("posts");
+  
+  // State cho tương tác
+  const [activeCommentId, setActiveCommentId] = useState(null);
+  const [commentText, setCommentText] = useState("");
+  const [openMenuId, setOpenMenuId] = useState(null);
+
   const currentUser = getCurrentUser();
 
+  // Load data
   useEffect(() => {
     async function load() {
       try {
         const p = await getProfile(username);
         setProfile(p);
-        
         const data = await getUserPosts(username, activeTab);
         setPosts(data.posts || data);
       } catch (err) { console.error(err); }
@@ -29,6 +37,7 @@ export default function ProfilePage() {
     load();
   }, [username, activeTab]);
 
+  // 1. Xử lý Follow
   async function handleFollow() {
     try {
       if (profile.is_following) await unfollowUser(profile.id);
@@ -42,73 +51,129 @@ export default function ProfilePage() {
     } catch(err) { console.error(err); }
   }
 
-  // Helper 1: Render nội dung chính của bài Post (có xử lý Repost UI)
-  const renderContent = (content) => {
-      if (content && content.startsWith("REPOST::")) {
+  // 2. Xử lý Like (Update state ngay lập tức)
+  async function handleLike(postId) {
+    try {
+        await toggleLike(postId);
+        setPosts(posts.map(p => {
+            if (p.id === postId) {
+                // Nếu API trả về field liked_by_me thì dùng, không thì tự toggle
+                const isLiked = !p.liked_by_me; 
+                return { 
+                    ...p, 
+                    liked_by_me: isLiked, 
+                    likes_count: p.likes_count + (isLiked ? 1 : -1) 
+                };
+            }
+            return p;
+        }));
+    } catch (e) { console.error(e); }
+  }
+
+  // 3. Xử lý Delete (Cho chính chủ)
+  async function handleDelete(postId) {
+      if (!window.confirm("Are you sure you want to delete this post?")) return;
+      try {
+          await deletePost(postId);
+          setPosts(posts.filter(p => p.id !== postId));
+      } catch(e) { console.error(e); }
+  }
+
+  // 4. Xử lý Repost với Caption (Quote Tweet)
+  async function handleRepostWithCaption(postToShare) {
+      const caption = window.prompt("Add a comment to your repost (optional):");
+      if (caption === null) return; // User ấn Cancel
+
+      try {
+        const repostData = {
+            original_author: postToShare.author_name,
+            original_username: postToShare.author_username,
+            original_content: postToShare.content.split("|||REPOST::")[0], // Lấy nội dung gốc sạch
+            original_avatar: postToShare.author_avatar,
+            original_image: postToShare.image_url
+        };
+        
+        // FORMAT MỚI: "Caption của tôi |||REPOST::{json}"
+        // Dùng dấu phân cách đặc biệt ||| để sau này dễ tách
+        const finalContent = `${caption} |||REPOST::${JSON.stringify(repostData)}`;
+        
+        const formData = new FormData();
+        formData.append("content", finalContent);
+        
+        await createPost(formData);
+        alert("Reposted successfully to your feed!");
+      } catch (err) { console.error(err); }
+  }
+
+  // 5. Xử lý Comment
+  async function submitComment(postId) {
+    if(!commentText.trim()) return;
+    try {
+        await createComment(postId, { body: commentText });
+        setCommentText("");
+        setActiveCommentId(null);
+        navigate(`/post/${postId}`);
+    } catch(e) { console.error(e); }
+  }
+
+  // Helper render Content (Hỗ trợ định dạng Repost mới)
+  const renderContent = (fullContent) => {
+      if (!fullContent) return null;
+
+      let caption = fullContent;
+      let repostData = null;
+
+      // Kiểm tra xem có phải Repost kiểu mới không
+      if (fullContent.includes("|||REPOST::")) {
+          const parts = fullContent.split("|||REPOST::");
+          caption = parts[0]; // Phần text người dùng viết
           try {
-              const data = JSON.parse(content.replace("REPOST::", ""));
-              const repostAvatar = getImageUrl(data.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.original_username}`;
+              repostData = JSON.parse(parts[1]);
+          } catch {}
+      } 
+      // Kiểm tra kiểu cũ (để tương thích ngược)
+      else if (fullContent.startsWith("REPOST::")) {
+          caption = "";
+          try {
+              repostData = JSON.parse(fullContent.replace("REPOST::", ""));
+          } catch {}
+      }
+
+      return (
+          <div className="text-[15px] text-slate-900 mb-2">
+              {caption && <p className="mb-3 whitespace-pre-wrap">{caption}</p>}
               
-              return (
-                  <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer">
+              {repostData && (
+                  <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                       onClick={(e) => {
+                           e.stopPropagation();
+                           navigate(`/profile/${repostData.original_username}`);
+                       }}>
                       <div className="flex items-center gap-2 mb-2">
-                          <img src={repostAvatar} className="w-6 h-6 rounded-full border border-slate-100 object-cover" alt="orig" />
-                          <span className="font-bold text-sm text-slate-900">{data.original_author}</span>
-                          <span className="text-slate-500 text-xs">@{data.original_username}</span>
+                          <img src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} className="w-5 h-5 rounded-full" alt="orig" />
+                          <span className="font-bold text-sm">{repostData.original_author}</span>
+                          <span className="text-slate-500 text-xs">@{repostData.original_username}</span>
                       </div>
-                      <p className="text-sm text-slate-800 mb-2">{data.original_content}</p>
-                      {data.original_image && (
-                          <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50">
-                              <img src={getImageUrl(data.original_image)} className="w-full h-full object-cover" alt="orig content"/>
+                      <p className="text-sm text-slate-800 mb-2 line-clamp-3">{repostData.original_content}</p>
+                      {repostData.original_image && (
+                          <div className="rounded-xl overflow-hidden h-32 border border-slate-100 bg-slate-100">
+                              <img src={getImageUrl(repostData.original_image)} className="w-full h-full object-cover" alt="orig content"/>
                           </div>
                       )}
                   </div>
-              );
-          } catch { return content; }
-      }
-      return <p className="text-slate-800 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">{content}</p>;
-  };
-
-  // Helper 2: Làm sạch nội dung cho phần trích dẫn bé tí (Tab Replies)
-  const getCleanQuote = (content) => {
-      if (!content) return "Content unavailable";
-      if (content.startsWith("REPOST::")) {
-          try {
-              const data = JSON.parse(content.replace("REPOST::", ""));
-              return data.original_content || "Shared a post";
-          } catch {
-              return "Shared a post";
-          }
-      }
-      return content;
-  };
-
-  const getTabClass = (tabName) => {
-      const base = "flex-1 py-4 text-center text-sm font-medium transition-colors hover:bg-slate-50 cursor-pointer relative";
-      const active = "text-slate-900 font-bold border-b-4 border-indigo-600";
-      const inactive = "text-slate-500 border-b-4 border-transparent";
-      return `${base} ${activeTab === tabName ? active : inactive}`;
+              )}
+          </div>
+      );
   };
 
   if (!profile) return <MainLayout><div className="p-10 text-center">Loading...</div></MainLayout>;
-
   const avatarSrc = getImageUrl(profile.avatar_url) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${profile.username}`;
 
   return (
     <MainLayout active="profile">
       <main className="w-full lg:w-[600px] border-r border-slate-200/60 min-h-screen pb-20">
         
-        {/* Header & Info */}
-        <div className="hidden lg:flex sticky top-0 z-30 bg-white/80 backdrop-blur-md px-4 py-3 border-b border-slate-100 items-center gap-4">
-            <Link to="/home" className="p-2 -ml-2 hover:bg-slate-100 rounded-full transition-colors">
-                <ArrowLeft className="w-5 h-5 text-slate-600" />
-            </Link>
-            <div>
-                 <h2 className="font-bold text-lg text-slate-900">{profile.full_name}</h2>
-                 <p className="text-xs text-slate-500">{posts.length} posts</p>
-             </div>
-        </div>
-
+        {/* Header Profile Info (Giữ nguyên phần UI đẹp của bạn) */}
         <div className="relative mb-6">
             <div className="h-48 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative overflow-hidden"></div>
             <div className="px-4 pb-4 relative">
@@ -119,143 +184,111 @@ export default function ProfilePage() {
                         </div>
                     </div>
                     {currentUser?.username === profile.username ? (
-                        <Link to="/profile/edit" className="mb-2 px-5 py-2.5 border border-slate-300 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 hover:border-slate-400 transition-all bg-white/80 backdrop-blur-sm">
-                            Edit profile
-                        </Link>
+                        <Link to="/profile/edit" className="mb-2 px-5 py-2.5 border border-slate-300 rounded-2xl font-bold text-slate-700 hover:bg-slate-50 bg-white/90">Edit profile</Link>
                     ) : (
-                        <button onClick={handleFollow} className={`mb-2 px-5 py-2.5 rounded-2xl font-bold transition-all ${profile.is_following ? "border border-slate-300 bg-white text-slate-700" : "bg-slate-900 text-white shadow-lg"}`}>
+                        <button onClick={handleFollow} className={`mb-2 px-5 py-2.5 rounded-2xl font-bold transition-all ${profile.is_following ? "border border-slate-300 bg-white text-slate-700" : "bg-slate-900 text-white"}`}>
                             {profile.is_following ? "Following" : "Follow"}
                         </button>
                     )}
                 </div>
-                <div className="space-y-3">
-                    <div>
-                        <h1 className="text-2xl font-extrabold text-slate-900 flex items-center gap-2">{profile.full_name}</h1>
-                        <p className="text-slate-500 text-[15px]">@{profile.username}</p>
+                <div>
+                    <h1 className="text-2xl font-extrabold text-slate-900">{profile.full_name}</h1>
+                    <p className="text-slate-500">@{profile.username}</p>
+                    {profile.bio && <p className="text-slate-700 mt-2">{profile.bio}</p>}
+                    <div className="flex gap-4 mt-3 text-sm text-slate-500">
+                        <span>{profile.location || "Hanoi, VN"}</span>
+                        <span>{profile.joined_date}</span>
                     </div>
-                    {profile.bio && <p className="text-slate-700 leading-relaxed text-[15px] max-w-lg">{profile.bio}</p>}
-                    <div className="flex flex-wrap gap-4 text-sm text-slate-500 items-center pt-1">
-                        <div className="flex items-center gap-1.5"><MapPin className="w-4 h-4" /><span>{profile.location || "Hanoi, VN"}</span></div>
-                        <div className="flex items-center gap-1.5"><Calendar className="w-4 h-4" /><span>{profile.joined_date}</span></div>
-                    </div>
-                    <div className="flex gap-6 pt-2">
-                        <div className="flex gap-1.5 group"><span className="font-bold text-slate-900">{profile.following_count}</span><span className="text-slate-500">Following</span></div>
-                        <div className="flex gap-1.5 group"><span className="font-bold text-slate-900">{profile.followers_count}</span><span className="text-slate-500">Followers</span></div>
+                    <div className="flex gap-4 mt-3">
+                        <span className="font-bold text-slate-900">{profile.following_count} <span className="font-normal text-slate-500">Following</span></span>
+                        <span className="font-bold text-slate-900">{profile.followers_count} <span className="font-normal text-slate-500">Followers</span></span>
                     </div>
                 </div>
             </div>
         </div>
 
         {/* Tabs */}
-        <div className="flex border-b border-slate-200/60 bg-white/80 backdrop-blur-sm sticky top-14 z-20">
-            <button onClick={() => setActiveTab("posts")} className={getTabClass("posts")}>Posts</button>
-            <button onClick={() => setActiveTab("replies")} className={getTabClass("replies")}>Replies</button>
-            <button onClick={() => setActiveTab("media")} className={getTabClass("media")}>Media</button>
-            <button onClick={() => setActiveTab("likes")} className={getTabClass("likes")}>Likes</button>
+        <div className="flex border-b border-slate-200 sticky top-0 bg-white/95 backdrop-blur z-20">
+            {["posts", "replies", "media", "likes"].map(tab => (
+                <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-3 font-bold capitalize ${activeTab === tab ? "border-b-4 border-indigo-600 text-slate-900" : "text-slate-500 hover:bg-slate-50"}`}>
+                    {tab}
+                </button>
+            ))}
         </div>
 
-        {/* CONTENT AREA */}
+        {/* POST LIST (Đã tích hợp Logic Tương tác) */}
         <div className="min-h-[500px]">
+            {posts.length === 0 && <div className="p-10 text-center text-slate-500">No {activeTab} yet.</div>}
             
-            {/* --- CASE 1: GRID MEDIA --- */}
-            {activeTab === "media" && (
+            {/* GRID MEDIA */}
+            {activeTab === "media" ? (
                 <div className="grid grid-cols-3 gap-1 p-1">
                     {posts.map(post => (
-                        <Link key={post.id} to={`/post/${post.id}`} className="aspect-square bg-slate-100 overflow-hidden relative group">
-                            <img src={getImageUrl(post.image_url)} className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300" alt="media" />
-                            <div className="absolute inset-0 bg-black/0 group-hover:bg-black/20 transition-colors"></div>
+                        <Link key={post.id} to={`/post/${post.id}`} className="aspect-square bg-slate-100 relative group">
+                            <img src={getImageUrl(post.image_url)} className="w-full h-full object-cover" alt="media" />
                         </Link>
                     ))}
-                    {posts.length === 0 && <div className="col-span-3 p-10 text-center text-slate-500">No photos found.</div>}
                 </div>
-            )}
-
-            {/* --- CASE 2: REPLIES LIST (Fix JSON Display) --- */}
-            {activeTab === "replies" && (
-                <div className="divide-y divide-slate-100">
-                    {posts.length === 0 && <div className="p-10 text-center text-slate-500">No replies yet.</div>}
-                    {posts.map(post => (
-                        <div key={post.id} className="p-6 hover:bg-slate-50 transition-colors flex gap-4">
-                            <div className="flex flex-col items-center">
-                                <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-10 h-10 rounded-full bg-slate-100 border border-slate-100 object-cover" alt="User" />
-                                <div className="w-0.5 flex-1 bg-slate-200 my-2 rounded-full"></div>
+            ) : (
+                /* LIST POSTS */
+                posts.map(post => (
+                    <div key={post.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors relative">
+                        {/* Dropdown Menu cho Owner */}
+                        {currentUser?.username === profile.username && (
+                            <div className="absolute top-4 right-4 z-10">
+                                <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === post.id ? null : post.id); }} className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-full">
+                                    <MoreHorizontal className="w-5 h-5" />
+                                </button>
+                                {openMenuId === post.id && (
+                                    <div className="absolute right-0 mt-1 w-32 bg-white rounded-xl shadow-xl border border-slate-100 overflow-hidden z-20">
+                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(post.id); }} className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"><Trash2 className="w-4 h-4" /> Delete</button>
+                                    </div>
+                                )}
                             </div>
-                            
-                            <div className="flex-1 min-w-0">
-                                <div className="flex items-center gap-2 mb-1 text-sm text-slate-500">
-                                    <span className="font-bold text-slate-900">{post.author_name}</span>
-                                    <span>replied to</span>
-                                    <Link to={`/profile/${post.reply_to_username}`} className="text-indigo-600 font-medium hover:underline">
-                                        @{post.reply_to_username}
-                                    </Link>
-                                    <span>· {post.created_at_human}</span>
-                                </div>
-                                
-                                <p className="text-slate-900 text-[15px] mb-3">{post.content}</p>
-                                
-                                <Link to={`/post/${post.id}`} className="block p-4 rounded-2xl bg-slate-100/70 border border-slate-200 hover:bg-slate-200/70 transition-colors">
+                        )}
+
+                        <article className="p-5 cursor-pointer" onClick={() => navigate(`/post/${post.id}`)}>
+                            <div className="flex gap-3">
+                                <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-12 h-12 rounded-full border border-slate-100 flex-shrink-0 object-cover" alt="User" />
+                                <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
-                                        <div className="text-xs font-bold text-slate-700">{post.reply_to_author}</div>
-                                        <span className="text-xs text-slate-400">Original Post</span>
+                                        <span className="font-bold text-slate-900">{post.author_name}</span>
+                                        <span className="text-slate-500 text-sm">@{post.author_username} · {post.created_at_human}</span>
                                     </div>
-                                    {/* SỬ DỤNG HÀM getCleanQuote ĐỂ FIX LỖI HIỂN THỊ JSON */}
-                                    <p className="text-xs text-slate-500 line-clamp-2 italic">"{getCleanQuote(post.reply_to_content)}"</p>
-                                </Link>
-                            </div>
-                        </div>
-                    ))}
-                </div>
-            )}
+                                    
+                                    {renderContent(post.content)}
+                                    
+                                    {post.image_url && (
+                                        <div className="rounded-2xl overflow-hidden border border-slate-200 mt-3 mb-2">
+                                            <img src={getImageUrl(post.image_url)} className="w-full max-h-[500px] object-cover" alt="Post" />
+                                        </div>
+                                    )}
 
-            {/* --- CASE 3: STANDARD POSTS & LIKES --- */}
-            {(activeTab === "posts" || activeTab === "likes") && (
-                <>
-                    {posts.length === 0 && (
-                        <div className="p-10 text-center text-slate-500">
-                            {activeTab === "likes" ? "No liked posts yet." : "No posts yet."}
-                        </div>
-                    )}
-                    {posts.map(post => (
-                        <div key={post.id} className="border-b border-slate-100 hover:bg-slate-50/30 transition-colors">
-                            <article className="p-6">
-                                <div className="flex gap-4">
-                                    <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-12 h-12 rounded-full bg-slate-100 border-slate-100 flex-shrink-0 object-cover" alt="User" />
-                                    <div className="flex-1 min-w-0">
-                                        <div className="flex items-center gap-2 mb-1">
-                                            <span className="font-bold text-slate-900 text-[15px]">{post.author_name}</span>
-                                            <span className="text-slate-400 text-[14px]">@{post.author_username}</span>
-                                            <span className="text-slate-300 text-[10px]">•</span>
-                                            <span className="text-slate-400 text-[14px]">{post.created_at_human}</span>
-                                        </div>
-                                        
-                                        <Link to={`/post/${post.id}`} className="block group">
-                                            {renderContent(post.content)}
-                                            {post.image_url && (
-                                                <div className="rounded-2xl overflow-hidden border border-slate-200 mb-3 bg-slate-100 mt-3">
-                                                    <img src={getImageUrl(post.image_url)} className="w-full h-full object-cover" alt="Post" />
-                                                </div>
-                                            )}
-                                        </Link>
-                                        
-                                        <div className="flex justify-between items-center text-slate-400 max-w-md pt-1">
-                                            <div className="flex items-center gap-2 hover:text-indigo-500"><MessageCircle className="w-5 h-5" /> <span className="text-sm">{post.comments_count}</span></div>
-                                            <div className="flex items-center gap-2 hover:text-green-500"><Repeat className="w-5 h-5" /> <span className="text-sm">0</span></div>
-                                            <div className="flex items-center gap-2 hover:text-pink-500"><Heart className="w-5 h-5" /> <span className="text-sm">{post.likes_count}</span></div>
-                                            <div className="flex items-center gap-2 hover:text-indigo-500"><Share2 className="w-5 h-5" /></div>
-                                        </div>
+                                    {/* Action Buttons */}
+                                    <div className="flex justify-between items-center text-slate-500 max-w-md mt-3" onClick={e => e.stopPropagation()}>
+                                        <button onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)} className="flex items-center gap-2 hover:text-indigo-500 group"><MessageCircle className="w-5 h-5" /> <span className="text-sm">{post.comments_count}</span></button>
+                                        <button onClick={() => handleRepostWithCaption(post)} className="flex items-center gap-2 hover:text-green-500 group"><Repeat className="w-5 h-5" /> <span className="text-sm">Repost</span></button>
+                                        <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}><Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{post.likes_count}</span></button>
+                                        <button className="hover:text-indigo-500"><Share2 className="w-5 h-5" /></button>
                                     </div>
                                 </div>
-                            </article>
-                        </div>
-                    ))}
-                </>
+                            </div>
+                        </article>
+
+                        {/* Comment Input Box */}
+                        {activeCommentId === post.id && (
+                            <div className="px-5 pb-4 pl-[4.5rem]">
+                                <div className="flex gap-2 items-center bg-slate-100 rounded-2xl px-4 py-2">
+                                    <input autoFocus className="bg-transparent border-none outline-none w-full text-sm" placeholder="Post your reply..." value={commentText} onChange={e => setCommentText(e.target.value)} onKeyDown={e => e.key === 'Enter' && submitComment(post.id)} />
+                                    <button onClick={() => submitComment(post.id)} disabled={!commentText.trim()} className="text-indigo-600 disabled:text-slate-400"><Send className="w-4 h-4" /></button>
+                                </div>
+                            </div>
+                        )}
+                    </div>
+                ))
             )}
         </div>
       </main>
-
-      <aside className="hidden xl:block w-[350px] pl-8 pt-6 space-y-8 sticky top-0 h-screen overflow-y-auto pb-8">
-      </aside>
-
     </MainLayout>
   );
 }

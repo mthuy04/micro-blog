@@ -109,17 +109,24 @@ export default function HomePage() {
   }
 
   async function handleRepost(postToShare) {
-    if (!window.confirm("Repost this to your feed?")) return;
+    // THÊM: Hỏi caption
+    const caption = window.prompt("Add a comment to your repost (optional):");
+    if (caption === null) return; // User ấn Cancel thì thôi không repost nữa
+
     try {
         const repostData = {
             original_author: postToShare.author_name,
             original_username: postToShare.author_username,
-            original_content: postToShare.content,
+            // Lấy nội dung sạch (đề phòng repost chồng repost)
+            original_content: postToShare.content.split("|||REPOST::")[0], 
             original_avatar: postToShare.author_avatar,
             original_image: postToShare.image_url
         };
+        
+        const finalContent = `${caption} |||REPOST::${JSON.stringify(repostData)}`;
         const formData = new FormData();
-        formData.append("content", `REPOST::${JSON.stringify(repostData)}`);
+        formData.append("content", finalContent);
+        
         await createPost(formData);
         
         setPage(1);
@@ -160,47 +167,61 @@ export default function HomePage() {
   }
 
   const renderPostContent = (post) => {
-      if (editingPostId === post.id) {
-          return (
-              <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                  <textarea 
-                      className="w-full p-3 border border-indigo-300 rounded-xl focus:ring-2 focus:ring-indigo-200 outline-none bg-slate-50"
-                      rows={3}
-                      value={editContent}
-                      onChange={(e) => setEditContent(e.target.value)}
-                  />
-                  <div className="flex gap-2 mt-2">
-                      <button onClick={() => saveEdit(post.id)} className="flex items-center gap-1 px-3 py-1 bg-indigo-600 text-white text-xs rounded-full hover:bg-indigo-700"><Check className="w-3 h-3" /> Save</button>
-                      <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full hover:bg-slate-300">Cancel</button>
-                  </div>
-              </div>
-          );
-      }
+    // Logic Edit (Giữ nguyên)
+    if (editingPostId === post.id) {
+        // ... (code edit cũ)
+        return (
+            <div className="mt-2" onClick={(e) => e.stopPropagation()}>
+                <textarea className="w-full p-3 border border-indigo-300 rounded-xl bg-slate-50" rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+                <div className="flex gap-2 mt-2">
+                    <button onClick={() => saveEdit(post.id)} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-full">Save</button>
+                    <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">Cancel</button>
+                </div>
+            </div>
+        );
+    }
 
-      if (post.content.startsWith("REPOST::")) {
-          try {
-              const data = JSON.parse(post.content.replace("REPOST::", ""));
-              const repostAvatar = getImageUrl(data.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${data.original_username}`;
-              return (
-                  <div className="mt-2 border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors">
-                      <div className="flex items-center gap-2 mb-2">
-                          <img src={repostAvatar} className="w-6 h-6 rounded-full border border-slate-100 object-cover" alt="orig" />
-                          <span className="font-bold text-sm text-slate-900">{data.original_author}</span>
-                          <span className="text-slate-500 text-xs">@{data.original_username}</span>
-                      </div>
-                      <p className="text-sm text-slate-800 mb-2">{data.original_content}</p>
-                      {data.original_image && (
-                          <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50">
-                              <img src={getImageUrl(data.original_image)} className="w-full h-full object-cover" alt="orig content" />
-                          </div>
-                      )}
-                  </div>
-              );
-          } catch { return post.content; }
-      }
-      return <p className="text-slate-800 text-[15px] leading-relaxed mb-3 whitespace-pre-wrap">{post.content}</p>;
-  };
+    let caption = post.content;
+    let repostData = null;
 
+    // PARSE REPOST MỚI
+    if (post.content.includes("|||REPOST::")) {
+        const parts = post.content.split("|||REPOST::");
+        caption = parts[0];
+        try { repostData = JSON.parse(parts[1]); } catch {}
+    } 
+    // PARSE REPOST CŨ (Fallback)
+    else if (post.content.startsWith("REPOST::")) {
+        caption = "";
+        try { repostData = JSON.parse(post.content.replace("REPOST::", "")); } catch {}
+    }
+
+    return (
+        <div className="mt-1">
+            {caption && <p className="text-slate-900 text-[15px] mb-3 whitespace-pre-wrap">{caption}</p>}
+            
+            {repostData && (
+                <div className="border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
+                     onClick={(e) => {
+                         e.stopPropagation();
+                         navigate(`/profile/${repostData.original_username}`);
+                     }}>
+                    <div className="flex items-center gap-2 mb-2">
+                        <img src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} className="w-5 h-5 rounded-full" alt="orig" />
+                        <span className="font-bold text-sm text-slate-900">{repostData.original_author}</span>
+                        <span className="text-slate-500 text-xs">@{repostData.original_username}</span>
+                    </div>
+                    <p className="text-sm text-slate-800 mb-2">{repostData.original_content}</p>
+                    {repostData.original_image && (
+                        <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50">
+                            <img src={getImageUrl(repostData.original_image)} className="w-full h-full object-cover" alt="orig content" />
+                        </div>
+                    )}
+                </div>
+            )}
+        </div>
+    );
+};
   const goToDetail = (e, postId) => {
       if (editingPostId === postId) return;
       navigate(`/post/${postId}`);

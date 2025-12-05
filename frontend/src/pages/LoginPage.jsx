@@ -125,7 +125,7 @@ export default function LoginPage() {
         <div className="absolute inset-0 flex items-center justify-center">
             <div className="w-[400px] bg-white/60 backdrop-blur-xl border border-white/50 p-6 rounded-3xl shadow-2xl shadow-indigo-500/10 transform rotate-[-2deg]">
                 <div className="flex items-center gap-3 mb-4">
-                    <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" className="w-12 h-12 rounded-full bg-white shadow-sm border-2 border-white" />
+                    <img src="https://res.cloudinary.com/djncd1olg/image/upload/v1764899478/IMG_4936_tvb5gl.png" className="w-12 h-12 rounded-full bg-white shadow-sm border-2 border-white" />
                     <div>
                         <div className="h-4 w-24 bg-slate-800/10 rounded mb-1.5"></div>
                         <div className="h-3 w-16 bg-slate-800/5 rounded"></div>
@@ -135,10 +135,10 @@ export default function LoginPage() {
                     <ImageIcon className="w-12 h-12" />
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400">
+                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400"> Minh Thuy Nguyen
                         <Heart className="w-4 h-4" />
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400">
+                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400"> Lead Project
                          <MessageCircle className="w-4 h-4" />
                     </div>
                 </div>
