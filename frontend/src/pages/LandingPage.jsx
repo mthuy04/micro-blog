@@ -108,9 +108,9 @@ export default function LandingPage() {
                 <div className="absolute top-12 left-0 right-0 bg-white p-6 rounded-3xl shadow-2xl shadow-slate-200 border border-slate-100 z-20">
                   <div className="flex justify-between items-start mb-4">
                     <div className="flex gap-3">
-                      <img src="https://res.cloudinary.com/djncd1olg/image/upload/v1764899478/IMG_4936_tvb5gl.png" alt="Avatar" className="w-12 h-12 rounded-full bg-indigo-50 p-0.5" />
+                      <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Sara" alt="Avatar" className="w-12 h-12 rounded-full bg-indigo-50 p-0.5" />
                       <div>
-                        <h3 className="font-bold text-slate-900">Minh Thuý xinhs</h3>
+                        <h3 className="font-bold text-slate-900">Final Project of Group 3</h3>
                         <p className="text-slate-500 text-xs">@thuyxinh • 2h</p>
                       </div>
                     </div>

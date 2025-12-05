@@ -2,7 +2,6 @@ import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { getFeed, createPost, toggleLike, createComment, deletePost, updatePost } from "../api/posts";
-import { getSuggestions, followUser } from "../api/social";
 import { getCurrentUser } from "../api/client";
 import { 
   Image, Smile, Calendar, MapPin, 
@@ -109,15 +108,13 @@ export default function HomePage() {
   }
 
   async function handleRepost(postToShare) {
-    // THÊM: Hỏi caption
     const caption = window.prompt("Add a comment to your repost (optional):");
-    if (caption === null) return; // User ấn Cancel thì thôi không repost nữa
+    if (caption === null) return; 
 
     try {
         const repostData = {
             original_author: postToShare.author_name,
             original_username: postToShare.author_username,
-            // Lấy nội dung sạch (đề phòng repost chồng repost)
             original_content: postToShare.content.split("|||REPOST::")[0], 
             original_avatar: postToShare.author_avatar,
             original_image: postToShare.image_url
@@ -167,9 +164,7 @@ export default function HomePage() {
   }
 
   const renderPostContent = (post) => {
-    // Logic Edit (Giữ nguyên)
     if (editingPostId === post.id) {
-        // ... (code edit cũ)
         return (
             <div className="mt-2" onClick={(e) => e.stopPropagation()}>
                 <textarea className="w-full p-3 border border-indigo-300 rounded-xl bg-slate-50" rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} />
@@ -184,13 +179,11 @@ export default function HomePage() {
     let caption = post.content;
     let repostData = null;
 
-    // PARSE REPOST MỚI
     if (post.content.includes("|||REPOST::")) {
         const parts = post.content.split("|||REPOST::");
         caption = parts[0];
         try { repostData = JSON.parse(parts[1]); } catch {}
     } 
-    // PARSE REPOST CŨ (Fallback)
     else if (post.content.startsWith("REPOST::")) {
         caption = "";
         try { repostData = JSON.parse(post.content.replace("REPOST::", "")); } catch {}
@@ -360,8 +353,8 @@ export default function HomePage() {
                 </div>
             )}
         </main>
-
-        {/* ĐÃ XÓA: Phần <aside> bị trùng lặp tại đây */}
     </MainLayout>
   );
 }
+
+
