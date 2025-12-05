@@ -200,12 +200,25 @@ def update_post(current_user: User, post_id: int):
 @api_bp.delete("/posts/<int:post_id>")
 @token_required
 def delete_post_api(current_user: User, post_id: int):
-    post = Post.query.get_or_404(post_id)
-    
-    if post.user_id != current_user.id and not current_user.is_admin:
-        return jsonify({"error": "Forbidden"}), 403
+    try:
+        post = Post.query.get_or_404(post_id)
+        
+        # Chỉ chủ bài viết hoặc Admin mới được xoá
+        if post.user_id != current_user.id and not current_user.is_admin:
+            return jsonify({"error": "Forbidden"}), 403
 
-    db.session.delete(post)
-    db.session.commit()
-    
-    return jsonify({"message": "Post deleted"})
+        # Xoá thủ công các like và comment liên quan trước (để tránh lỗi DB)
+        # Dù DB có cascade, xoá tay ở đây giúp SQLAlchemy không bị loạn
+        for comment in post.comments:
+            db.session.delete(comment)
+        for like in post.likes:
+            db.session.delete(like)
+            
+        db.session.delete(post)
+        db.session.commit()
+        
+        return jsonify({"message": "Post deleted"})
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR DELETING POST: {e}") # Xem lỗi này trong Logs của Render
+        return jsonify({"error": "Cannot delete post. Please try again."}), 500
