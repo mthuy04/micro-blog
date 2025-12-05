@@ -4,7 +4,6 @@ import MainLayout from "../components/layout/MainLayout";
 import { getFeed, createPost, toggleLike, createComment, deletePost, updatePost } from "../api/posts";
 import { getSuggestions, followUser } from "../api/social";
 import { getCurrentUser } from "../api/client";
-import { getImageUrl } from "../utils/env";
 import { 
   Image, Smile, Calendar, MapPin, 
   MessageCircle, Repeat, Heart, Share, X, Send,
