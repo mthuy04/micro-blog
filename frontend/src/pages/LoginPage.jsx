@@ -135,10 +135,10 @@ export default function LoginPage() {
                     <ImageIcon className="w-12 h-12" />
                 </div>
                 <div className="flex items-center gap-4">
-                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400"> Minh Thuy Nguyen
+                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400"> 
                         <Heart className="w-4 h-4" />
                     </div>
-                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400"> Lead Project
+                    <div className="w-8 h-8 rounded-full bg-white/50 flex items-center justify-center text-slate-400">
                          <MessageCircle className="w-4 h-4" />
                     </div>
                 </div>
