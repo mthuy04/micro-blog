@@ -69,9 +69,7 @@ def get_user_posts(username: str):
                     reply_to_username = original_post.user.email.split('@')[0]
 
             result.append({
-                "id": c.id,          # <--- QUAN TRỌNG: Trả về ID của Comment
-                "post_id": c.post_id, # <--- Giữ ID bài gốc để navigate
-                "type": "comment",    # <--- Đánh dấu đây là comment
+                "id": c.post_id,
                 "content": c.body,
                 "image_url": None,
                 "created_at_human": c.created_at.strftime("%b %d"),
