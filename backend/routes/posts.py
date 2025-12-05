@@ -225,8 +225,28 @@ def delete_post_api(current_user: User, post_id: int):
         db.session.commit()
         
         return jsonify({"message": "Post deleted successfully"})
+    
 
     except Exception as e:
         db.session.rollback()
         print(f"ERROR DELETING POST: {e}") # Xem dòng này trong Log của Render nếu vẫn lỗi
         return jsonify({"error": "Cannot delete post. Please try again."}), 500
+    
+@api_bp.delete("/comments/<int:comment_id>")
+@token_required
+def delete_comment_api(current_user: User, comment_id: int):
+    try: # <--- BẠN ĐÃ THIẾU DÒNG NÀY TRONG ẢNH CHỤP
+        from ..models import Comment 
+        comment = Comment.query.get_or_404(comment_id)
+        
+        if comment.user_id != current_user.id and not current_user.is_admin:
+            return jsonify({"error": "Forbidden"}), 403
+
+        db.session.delete(comment)
+        db.session.commit()
+        
+        return jsonify({"message": "Comment deleted"})
+    except Exception as e:
+        db.session.rollback()
+        print(f"ERROR DELETING COMMENT: {e}")
+        return jsonify({"error": "Cannot delete comment"}), 500
