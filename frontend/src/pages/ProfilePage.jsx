@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import MainLayout from "./MainLayout";
-import { getProfile, getUserPosts, followUser, unfollowUser } from "./social";
-import { toggleLike, deletePost, createPost, createComment } from "./posts"; // Thêm API actions
-import { getCurrentUser } from "./client";
-import { getImageUrl } from "./env";
+// --- SỬA CÁC DÒNG IMPORT DƯỚI ĐÂY ---
+import MainLayout from "../components/layout/MainLayout";
+import { getProfile, getUserPosts, followUser, unfollowUser } from "../api/social";
+import { toggleLike, deletePost, createPost, createComment } from "../api/posts";
+import { getCurrentUser } from "../api/client";
+import { getImageUrl } from "../utils/env";
+// --------------------------------------
 import { 
   ArrowLeft, MapPin, Calendar, 
   MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Trash2, Send
