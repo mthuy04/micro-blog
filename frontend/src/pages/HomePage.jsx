@@ -1,17 +1,16 @@
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate } from "react-router-dom";
-// --- ĐÃ SỬA IMPORT CHUẨN ---
 import MainLayout from "../components/layout/MainLayout";
 import { getFeed, createPost, toggleLike, createComment, deletePost, updatePost } from "../api/posts";
 import { getSuggestions, followUser } from "../api/social";
 import { getCurrentUser } from "../api/client";
 import { getImageUrl } from "../utils/env";
-// --------------------------
 import { 
   Image, Smile, Calendar, MapPin, 
   MessageCircle, Repeat, Heart, Share, X, Send,
   MoreHorizontal, Trash2, Edit2, Check, ArrowDownCircle
 } from "lucide-react";
+import { getImageUrl } from "../utils/env";
 
 export default function HomePage() {
   const [posts, setPosts] = useState([]);
