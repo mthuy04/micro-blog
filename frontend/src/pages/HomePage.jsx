@@ -169,13 +169,17 @@ export default function HomePage() {
   const renderPostContent = (post) => {
     // Logic Edit (Giữ nguyên)
     if (editingPostId === post.id) {
-        // ... (code edit cũ)
         return (
             <div className="mt-2" onClick={(e) => e.stopPropagation()}>
-                <textarea className="w-full p-3 border border-indigo-300 rounded-xl bg-slate-50" rows={3} value={editContent} onChange={(e) => setEditContent(e.target.value)} />
+                <textarea 
+                    className="w-full p-3 border border-indigo-300 rounded-xl bg-slate-50 text-sm focus:ring-2 focus:ring-indigo-500/20 outline-none" 
+                    rows={3} 
+                    value={editContent} 
+                    onChange={(e) => setEditContent(e.target.value)} 
+                />
                 <div className="flex gap-2 mt-2">
-                    <button onClick={() => saveEdit(post.id)} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-full">Save</button>
-                    <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full">Cancel</button>
+                    <button onClick={() => saveEdit(post.id)} className="px-3 py-1 bg-indigo-600 text-white text-xs rounded-full font-medium hover:bg-indigo-700 transition-colors">Save</button>
+                    <button onClick={() => setEditingPostId(null)} className="px-3 py-1 bg-slate-200 text-slate-600 text-xs rounded-full font-medium hover:bg-slate-300 transition-colors">Cancel</button>
                 </div>
             </div>
         );
@@ -184,36 +188,53 @@ export default function HomePage() {
     let caption = post.content;
     let repostData = null;
 
-    // PARSE REPOST MỚI
-    if (post.content.includes("|||REPOST::")) {
+    // --- LOGIC PARSE REPOST ĐÃ SỬA LỖI ---
+    if (post.content && post.content.includes("|||REPOST::")) {
         const parts = post.content.split("|||REPOST::");
-        caption = parts[0];
-        try { repostData = JSON.parse(parts[1]); } catch {}
+        caption = parts[0]; // Phần text người dùng viết (ví dụ: "đáng yêu")
+        try { 
+            // Parse phần JSON phía sau
+            repostData = JSON.parse(parts[1]); 
+        } catch (e) {
+            console.error("Lỗi parse repost:", e);
+        }
     } 
-    // PARSE REPOST CŨ (Fallback)
-    else if (post.content.startsWith("REPOST::")) {
+    // Fallback cho định dạng cũ (nếu có)
+    else if (post.content && post.content.startsWith("REPOST::")) {
         caption = "";
-        try { repostData = JSON.parse(post.content.replace("REPOST::", "")); } catch {}
+        try { 
+            repostData = JSON.parse(post.content.replace("REPOST::", "")); 
+        } catch (e) {}
     }
+    // -------------------------------------
 
     return (
         <div className="mt-1">
-            {caption && <p className="text-slate-900 text-[15px] mb-3 whitespace-pre-wrap">{caption}</p>}
+            {/* Hiển thị caption của người share */}
+            {caption && <p className="text-slate-900 text-[15px] mb-3 whitespace-pre-wrap leading-relaxed">{caption}</p>}
             
+            {/* Hiển thị khung bài gốc (nếu parse thành công) */}
             {repostData && (
                 <div className="border border-slate-200 rounded-2xl p-4 bg-white hover:bg-slate-50 transition-colors cursor-pointer"
                      onClick={(e) => {
                          e.stopPropagation();
+                         // Điều hướng đến profile người viết bài gốc
                          navigate(`/profile/${repostData.original_username}`);
                      }}>
                     <div className="flex items-center gap-2 mb-2">
-                        <img src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} className="w-5 h-5 rounded-full" alt="orig" />
-                        <span className="font-bold text-sm text-slate-900">{repostData.original_author}</span>
+                        <img 
+                            src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} 
+                            className="w-5 h-5 rounded-full object-cover border border-slate-100" 
+                            alt="orig" 
+                        />
+                        <span className="font-bold text-sm text-slate-900 hover:underline">{repostData.original_author}</span>
                         <span className="text-slate-500 text-xs">@{repostData.original_username}</span>
                     </div>
-                    <p className="text-sm text-slate-800 mb-2">{repostData.original_content}</p>
+                    
+                    <p className="text-sm text-slate-800 mb-2 line-clamp-3 leading-relaxed">{repostData.original_content}</p>
+                    
                     {repostData.original_image && (
-                        <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50">
+                        <div className="rounded-xl overflow-hidden h-40 border border-slate-100 bg-slate-50 mt-2">
                             <img src={getImageUrl(repostData.original_image)} className="w-full h-full object-cover" alt="orig content" />
                         </div>
                     )}
