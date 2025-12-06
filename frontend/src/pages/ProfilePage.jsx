@@ -53,14 +53,8 @@ export default function ProfilePage() {
         await toggleLike(postId);
         setPosts(posts.map(p => {
             if (p.id === postId) {
-                // Fix lỗi NaN: Ép kiểu số hoặc mặc định là 0
-                const currentLikes = Number(p.likes_count) || 0;
                 const isLiked = !p.liked_by_me; 
-                return { 
-                    ...p, 
-                    liked_by_me: isLiked, 
-                    likes_count: currentLikes + (isLiked ? 1 : -1) 
-                };
+                return { ...p, liked_by_me: isLiked, likes_count: p.likes_count + (isLiked ? 1 : -1) };
             }
             return p;
         }));
@@ -214,7 +208,7 @@ export default function ProfilePage() {
                 </div>
             ) : (
                 posts.map(post => {
-                    // --- LOGIC QUAN TRỌNG: PHÂN BIỆT POST VÀ REPLY ---
+                    // --- LOGIC MỚI: PHÂN BIỆT POST VÀ REPLY ---
                     const isReply = activeTab === "replies" || post.type === "comment";
                     
                     return (
@@ -265,14 +259,14 @@ export default function ProfilePage() {
                                         {/* Nút Reply (Luôn hiện để reply tiếp) */}
                                         <button onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)} className="flex items-center gap-2 hover:text-indigo-500 group">
                                             <MessageCircle className="w-5 h-5" /> 
-                                            {!isReply && <span className="text-sm">{Number(post.comments_count) || 0}</span>}
+                                            {!isReply && <span className="text-sm">{post.comments_count}</span>}
                                         </button>
 
                                         {/* Nếu là Post thường: Hiện Repost & Like */}
                                         {!isReply && (
                                             <>
                                                 <button onClick={() => handleRepostWithCaption(post)} className="flex items-center gap-2 hover:text-green-500 group"><Repeat className="w-5 h-5" /> <span className="text-sm">Repost</span></button>
-                                                <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}><Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{Number(post.likes_count) || 0}</span></button>
+                                                <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}><Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{post.likes_count}</span></button>
                                             </>
                                         )}
                                         
