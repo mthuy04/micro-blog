@@ -1,25 +1,49 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import MainLayout from "../components/layout/MainLayout";
 import { getAdminOverview } from "../api/admin";
+import { deletePost } from "../api/posts";
 import Toast from "../components/common/Toast";
-import { Users, FileText, Activity, AlertCircle } from "lucide-react";
+import { Users, FileText, Activity, AlertCircle, Trash2, ExternalLink } from "lucide-react";
 
 export default function AdminDashboard() {
   const [data, setData] = useState(null);
   const [toast, setToast] = useState({ type: "success", message: "" });
+  const navigate = useNavigate();
+
+  // Hàm cuộn trang đến phần mong muốn
+  const scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  };
+
+  async function loadData() {
+    try {
+      const res = await getAdminOverview();
+      setData(res);
+    } catch (err) {
+      console.error(err);
+      setToast({ type: "error", message: "Failed to load dashboard" });
+    }
+  }
 
   useEffect(() => {
-    async function load() {
-      try {
-        const res = await getAdminOverview();
-        setData(res);
-      } catch (err) {
-        console.error(err);
-        setToast({ type: "error", message: "Failed to load admin overview" });
-      }
-    }
-    load();
+    loadData();
   }, []);
+
+  const handleDeletePost = async (e, postId) => {
+      e.stopPropagation();
+      if(!window.confirm("Admin: Are you sure you want to delete this post?")) return;
+      try {
+          await deletePost(postId);
+          setToast({ type: "success", message: "Post deleted" });
+          loadData();
+      } catch (err) {
+          setToast({ type: "error", message: "Failed to delete post" });
+      }
+  };
 
   const stats = data?.stats || { total_users: 0, total_posts: 0, active_now: 0, pending_reports: 0 };
 
@@ -36,13 +60,14 @@ export default function AdminDashboard() {
           <div className="p-10 text-center text-slate-500 animate-pulse">Loading dashboard data...</div>
         ) : (
           <div className="space-y-8">
-            {/* Stats Grid */}
+            {/* --- STATS GRID (ĐÃ SỬA: Thêm onClick) --- */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               <StatCard
                 icon={<Users className="w-5 h-5"/>}
                 label="Total Users"
                 value={stats.total_users}
                 color="bg-indigo-50 text-indigo-600"
+                onClick={() => scrollToSection("users-list")} // Bấm vào sẽ cuộn xuống bảng User
               />
               <StatCard
                 icon={<Activity className="w-5 h-5"/>}
@@ -56,6 +81,7 @@ export default function AdminDashboard() {
                 label="Total Posts"
                 value={stats.total_posts}
                 color="bg-blue-50 text-blue-600"
+                onClick={() => scrollToSection("posts-list")} // Bấm vào sẽ cuộn xuống bảng Post
               />
               <StatCard
                 icon={<AlertCircle className="w-5 h-5"/>}
@@ -66,20 +92,20 @@ export default function AdminDashboard() {
             </div>
 
             <div className="grid lg:grid-cols-2 gap-8">
-                {/* Recent Users Table */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                {/* --- BẢNG USER (Thêm id="users-list") --- */}
+                <div id="users-list" className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden scroll-mt-24">
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <h3 className="font-bold text-slate-900">New Users</h3>
                     </div>
                     <div className="divide-y divide-slate-100">
                         {(data.recent_users || []).map((u) => (
-                            <div key={u.id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors">
+                            <div key={u.id} onClick={() => navigate(`/profile/${u.username}`)} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer group">
                                 <div className="flex items-center gap-3">
                                     <div className="w-10 h-10 rounded-full bg-indigo-100 text-indigo-600 flex items-center justify-center font-bold text-sm">
                                         {u.full_name.charAt(0)}
                                     </div>
                                     <div>
-                                        <p className="font-bold text-sm text-slate-900">{u.full_name}</p>
+                                        <p className="font-bold text-sm text-slate-900 group-hover:text-indigo-600 transition-colors">{u.full_name}</p>
                                         <p className="text-xs text-slate-500">@{u.username}</p>
                                     </div>
                                 </div>
@@ -94,47 +120,53 @@ export default function AdminDashboard() {
                     </div>
                 </div>
 
-                {/* Recent Posts Table */}
-                <div className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden">
+                {/* --- BẢNG POST (Thêm id="posts-list") --- */}
+                <div id="posts-list" className="bg-white rounded-3xl border border-slate-100 shadow-sm overflow-hidden scroll-mt-24">
                     <div className="px-6 py-4 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                         <h3 className="font-bold text-slate-900">Recent Posts</h3>
                     </div>
                     <div className="divide-y divide-slate-100">
                         {(data.recent_posts || []).map((p) => (
-                            <div key={p.id} className="px-6 py-4 hover:bg-slate-50 transition-colors">
-                                <div className="flex justify-between items-start mb-1">
-                                    <p className="font-bold text-xs text-slate-900">{p.author_name}</p>
+                            <div key={p.id} onClick={() => navigate(`/post/${p.id}`)} className="px-6 py-4 hover:bg-slate-50 transition-colors cursor-pointer group relative">
+                                <button 
+                                    onClick={(e) => handleDeletePost(e, p.id)}
+                                    className="absolute top-4 right-4 p-2 text-slate-300 hover:text-red-600 hover:bg-red-50 rounded-full opacity-0 group-hover:opacity-100 transition-all z-10"
+                                >
+                                    <Trash2 className="w-4 h-4" />
+                                </button>
+                                <div className="flex justify-between items-start mb-1 pr-8">
+                                    <div className="flex items-center gap-2">
+                                        <p className="font-bold text-xs text-slate-900">{p.author_name}</p>
+                                        <ExternalLink className="w-3 h-3 text-slate-300" />
+                                    </div>
                                     <span className="text-[10px] text-slate-400">{p.created_at_human}</span>
                                 </div>
-                                <p className="text-sm text-slate-600 mb-2 line-clamp-2">{p.content || "Image post"}</p>
+                                <p className="text-sm text-slate-600 mb-2 line-clamp-2 pr-6">{p.content || "Image post"}</p>
                                 <div className="flex gap-4 text-xs text-slate-400 font-medium">
                                     <span>❤️ {p.likes_count}</span>
                                     <span>💬 {p.comments_count}</span>
                                 </div>
                             </div>
                         ))}
-                        {(!data.recent_posts || data.recent_posts.length === 0) && (
-                            <div className="p-6 text-center text-sm text-slate-400">No posts yet.</div>
-                        )}
                     </div>
                 </div>
             </div>
           </div>
         )}
 
-        <Toast
-          type={toast.type}
-          message={toast.message}
-          onClose={() => setToast({ ...toast, message: "" })}
-        />
+        <Toast type={toast.type} message={toast.message} onClose={() => setToast({ ...toast, message: "" })} />
       </div>
     </MainLayout>
   );
 }
 
-function StatCard({ icon, label, value, color, live }) {
+// --- Cập nhật StatCard để nhận onClick ---
+function StatCard({ icon, label, value, color, live, onClick }) {
   return (
-    <div className="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4">
+    <div 
+        onClick={onClick} // Thêm sự kiện click
+        className={`bg-white p-5 rounded-2xl border border-slate-100 shadow-sm flex items-center gap-4 ${onClick ? "cursor-pointer hover:shadow-md transition-all active:scale-95" : ""}`}
+    >
         <div className={`p-3 rounded-xl ${color}`}>
             {icon}
         </div>

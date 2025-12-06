@@ -68,3 +68,15 @@ export async function searchSystem(query) {
     const res = await api.get(`/search?q=${encodeURIComponent(query)}`);
     return res.data;
 }
+
+// Lấy danh sách những người đang follow User có ID này
+export async function getUserFollowers(userId) {
+  const res = await api.get(`/users/${userId}/followers`);
+  return res.data;
+}
+
+// Lấy danh sách những người mà User này đang follow
+export async function getUserFollowing(userId) {
+  const res = await api.get(`/users/${userId}/following`);
+  return res.data;
+}

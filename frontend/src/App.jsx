@@ -14,6 +14,7 @@ import NotificationsPage from "./pages/NotificationsPage";
 import MessagesPage from "./pages/MessagesPage";
 import SearchPage from "./pages/SearchPage";
 import AdminDashboard from "./pages/AdminDashboard";
+import FollowPage from "./pages/FollowPage";
 
 export default function App() {
   return (
@@ -31,6 +32,9 @@ export default function App() {
           <Route path="/notifications" element={<NotificationsPage />} />
           <Route path="/messages" element={<MessagesPage />} />
           <Route path="/search" element={<SearchPage />} />
+          {/* Route cho Following và Followers */}
+<Route path="/profile/:username/following" element={<FollowPage />} />
+<Route path="/profile/:username/followers" element={<FollowPage />} />
           
           {/* Profile Routes */}
           <Route path="/profile/edit" element={<EditProfilePage />} />

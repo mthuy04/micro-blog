@@ -1,12 +1,10 @@
 import { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-// --- SỬA CÁC DÒNG IMPORT DƯỚI ĐÂY ---
 import MainLayout from "../components/layout/MainLayout";
 import { getProfile, getUserPosts, followUser, unfollowUser } from "../api/social";
 import { toggleLike, deletePost, createPost, createComment } from "../api/posts";
 import { getCurrentUser } from "../api/client";
 import { getImageUrl } from "../utils/env";
-// --------------------------------------
 import { 
   ArrowLeft, MapPin, Calendar, 
   MessageCircle, Repeat, Heart, Share2, MoreHorizontal, Trash2, Send
@@ -26,20 +24,18 @@ export default function ProfilePage() {
 
   const currentUser = getCurrentUser();
 
-  // Load data
   useEffect(() => {
     async function load() {
       try {
         const p = await getProfile(username);
         setProfile(p);
         const data = await getUserPosts(username, activeTab);
-        setPosts(data.posts || data);
+        setPosts(Array.isArray(data) ? data : (data.posts || []));
       } catch (err) { console.error(err); }
     }
     load();
   }, [username, activeTab]);
 
-  // 1. Xử lý Follow
   async function handleFollow() {
     try {
       if (profile.is_following) await unfollowUser(profile.id);
@@ -53,13 +49,11 @@ export default function ProfilePage() {
     } catch(err) { console.error(err); }
   }
 
-  // 2. Xử lý Like (Update state ngay lập tức)
   async function handleLike(postId) {
     try {
         await toggleLike(postId);
         setPosts(posts.map(p => {
             if (p.id === postId) {
-                // Nếu API trả về field liked_by_me thì dùng, không thì tự toggle
                 const isLiked = !p.liked_by_me; 
                 return { 
                     ...p, 
@@ -72,7 +66,6 @@ export default function ProfilePage() {
     } catch (e) { console.error(e); }
   }
 
-  // 3. Xử lý Delete (Cho chính chủ)
   async function handleDelete(postId) {
       if (!window.confirm("Are you sure you want to delete this post?")) return;
       try {
@@ -81,33 +74,29 @@ export default function ProfilePage() {
       } catch(e) { console.error(e); }
   }
 
-  // 4. Xử lý Repost với Caption (Quote Tweet)
   async function handleRepostWithCaption(postToShare) {
       const caption = window.prompt("Add a comment to your repost (optional):");
-      if (caption === null) return; // User ấn Cancel
+      if (caption === null) return; 
 
       try {
         const repostData = {
             original_author: postToShare.author_name,
             original_username: postToShare.author_username,
-            original_content: postToShare.content.split("|||REPOST::")[0], // Lấy nội dung gốc sạch
+            // Cắt chuỗi để tránh lồng repost vô tận
+            original_content: postToShare.content.split("|||REPOST::")[0],
             original_avatar: postToShare.author_avatar,
             original_image: postToShare.image_url
         };
         
-        // FORMAT MỚI: "Caption của tôi |||REPOST::{json}"
-        // Dùng dấu phân cách đặc biệt ||| để sau này dễ tách
         const finalContent = `${caption} |||REPOST::${JSON.stringify(repostData)}`;
-        
         const formData = new FormData();
         formData.append("content", finalContent);
         
         await createPost(formData);
-        alert("Reposted successfully to your feed!");
+        alert("Reposted successfully!");
       } catch (err) { console.error(err); }
   }
 
-  // 5. Xử lý Comment
   async function submitComment(postId) {
     if(!commentText.trim()) return;
     try {
@@ -118,27 +107,40 @@ export default function ProfilePage() {
     } catch(e) { console.error(e); }
   }
 
-  // Helper render Content (Hỗ trợ định dạng Repost mới)
+  // --- HÀM MỚI: LÀM SẠCH NỘI DUNG REPLY ĐỂ TRÁNH LỖI JSON ---
+  const getCleanReplyContent = (content) => {
+      if (!content) return "Unavailable content";
+      
+      // Nếu chứa dấu hiệu Repost mới
+      if (content.includes("|||REPOST::")) {
+          const parts = content.split("|||REPOST::");
+          // Trả về caption nếu có, nếu không thì báo là "Reposted..."
+          return parts[0].trim() || "Reposted a post"; 
+      }
+      
+      // Nếu là format Repost cũ (bắt đầu bằng JSON)
+      if (content.startsWith("REPOST::")) {
+          return "Reposted a post";
+      }
+      
+      return content;
+  };
+  // -----------------------------------------------------------
+
   const renderContent = (fullContent) => {
       if (!fullContent) return null;
 
       let caption = fullContent;
       let repostData = null;
 
-      // Kiểm tra xem có phải Repost kiểu mới không
       if (fullContent.includes("|||REPOST::")) {
           const parts = fullContent.split("|||REPOST::");
-          caption = parts[0]; // Phần text người dùng viết
-          try {
-              repostData = JSON.parse(parts[1]);
-          } catch {}
+          caption = parts[0];
+          try { repostData = JSON.parse(parts[1]); } catch {}
       } 
-      // Kiểm tra kiểu cũ (để tương thích ngược)
       else if (fullContent.startsWith("REPOST::")) {
           caption = "";
-          try {
-              repostData = JSON.parse(fullContent.replace("REPOST::", ""));
-          } catch {}
+          try { repostData = JSON.parse(fullContent.replace("REPOST::", "")); } catch {}
       }
 
       return (
@@ -152,7 +154,7 @@ export default function ProfilePage() {
                            navigate(`/profile/${repostData.original_username}`);
                        }}>
                       <div className="flex items-center gap-2 mb-2">
-                          <img src={getImageUrl(repostData.original_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${repostData.original_username}`} className="w-5 h-5 rounded-full" alt="orig" />
+                          <img src={getImageUrl(repostData.original_avatar)} className="w-5 h-5 rounded-full" alt="orig" />
                           <span className="font-bold text-sm">{repostData.original_author}</span>
                           <span className="text-slate-500 text-xs">@{repostData.original_username}</span>
                       </div>
@@ -175,7 +177,6 @@ export default function ProfilePage() {
     <MainLayout active="profile">
       <main className="w-full lg:w-[600px] border-r border-slate-200/60 min-h-screen pb-20">
         
-        {/* Header Profile Info (Giữ nguyên phần UI đẹp của bạn) */}
         <div className="relative mb-6">
             <div className="h-48 w-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 relative overflow-hidden"></div>
             <div className="px-4 pb-4 relative">
@@ -202,14 +203,17 @@ export default function ProfilePage() {
                         <span>{profile.joined_date}</span>
                     </div>
                     <div className="flex gap-4 mt-3">
-                        <span className="font-bold text-slate-900">{profile.following_count} <span className="font-normal text-slate-500">Following</span></span>
-                        <span className="font-bold text-slate-900">{profile.followers_count} <span className="font-normal text-slate-500">Followers</span></span>
-                    </div>
+    <Link to={`/profile/${profile.username}/following`} className="font-bold text-slate-900 hover:underline cursor-pointer">
+        {profile.following_count} <span className="font-normal text-slate-500">Following</span>
+    </Link>
+    <Link to={`/profile/${profile.username}/followers`} className="font-bold text-slate-900 hover:underline cursor-pointer">
+        {profile.followers_count} <span className="font-normal text-slate-500">Followers</span>
+    </Link>
+</div>
                 </div>
             </div>
         </div>
 
-        {/* Tabs */}
         <div className="flex border-b border-slate-200 sticky top-0 bg-white/95 backdrop-blur z-20">
             {["posts", "replies", "media", "likes"].map(tab => (
                 <button key={tab} onClick={() => setActiveTab(tab)} className={`flex-1 py-3 font-bold capitalize ${activeTab === tab ? "border-b-4 border-indigo-600 text-slate-900" : "text-slate-500 hover:bg-slate-50"}`}>
@@ -218,11 +222,9 @@ export default function ProfilePage() {
             ))}
         </div>
 
-        {/* POST LIST (Đã tích hợp Logic Tương tác) */}
         <div className="min-h-[500px]">
             {posts.length === 0 && <div className="p-10 text-center text-slate-500">No {activeTab} yet.</div>}
             
-            {/* GRID MEDIA */}
             {activeTab === "media" ? (
                 <div className="grid grid-cols-3 gap-1 p-1">
                     {posts.map(post => (
@@ -232,11 +234,10 @@ export default function ProfilePage() {
                     ))}
                 </div>
             ) : (
-                /* LIST POSTS */
                 posts.map(post => (
                     <div key={post.id} className="border-b border-slate-100 hover:bg-slate-50/50 transition-colors relative">
-                        {/* Dropdown Menu cho Owner */}
-                        {currentUser?.username === profile.username && (
+                        
+                        {currentUser?.username === profile.username && !post.is_reply && (
                             <div className="absolute top-4 right-4 z-10">
                                 <button onClick={(e) => { e.stopPropagation(); setOpenMenuId(openMenuId === post.id ? null : post.id); }} className="p-2 text-slate-400 hover:bg-indigo-50 hover:text-indigo-600 rounded-full">
                                     <MoreHorizontal className="w-5 h-5" />
@@ -250,8 +251,28 @@ export default function ProfilePage() {
                         )}
 
                         <article className="p-5 cursor-pointer" onClick={() => navigate(`/post/${post.id}`)}>
+                            
+                            {/* --- ĐOẠN NÀY ĐÃ ĐƯỢC CẬP NHẬT --- */}
+                            {post.is_reply && (
+                                <div className="mb-2 ml-14 relative">
+                                    <div className="absolute -left-8 top-6 bottom-[-20px] w-0.5 bg-slate-200"></div>
+                                    <div className="text-slate-500 text-xs mb-1 flex items-center gap-1">
+                                        <span>Replying to</span>
+                                        <Link to={`/profile/${post.reply_to_username}`} className="text-indigo-600 hover:underline font-bold" onClick={e => e.stopPropagation()}>
+                                            @{post.reply_to_username || "unknown"}
+                                        </Link>
+                                    </div>
+                                    
+                                    {/* SỬ DỤNG HÀM CLEAN CONTENT Ở ĐÂY */}
+                                    <div className="text-slate-400 text-sm line-clamp-1 italic bg-slate-50 p-2 rounded-lg border border-slate-100">
+                                        "{getCleanReplyContent(post.reply_to_content)}"
+                                    </div>
+                                </div>
+                            )}
+                            {/* ----------------------------------- */}
+
                             <div className="flex gap-3">
-                                <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-12 h-12 rounded-full border border-slate-100 flex-shrink-0 object-cover" alt="User" />
+                                <img src={getImageUrl(post.author_avatar) || `https://api.dicebear.com/7.x/avataaars/svg?seed=${post.author_username}`} className="w-12 h-12 rounded-full border border-slate-100 flex-shrink-0 object-cover z-10 bg-white" alt="User" />
                                 <div className="flex-1 min-w-0">
                                     <div className="flex items-center gap-2 mb-1">
                                         <span className="font-bold text-slate-900">{post.author_name}</span>
@@ -266,19 +287,19 @@ export default function ProfilePage() {
                                         </div>
                                     )}
 
-                                    {/* Action Buttons */}
-                                    <div className="flex justify-between items-center text-slate-500 max-w-md mt-3" onClick={e => e.stopPropagation()}>
-                                        <button onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)} className="flex items-center gap-2 hover:text-indigo-500 group"><MessageCircle className="w-5 h-5" /> <span className="text-sm">{post.comments_count}</span></button>
-                                        <button onClick={() => handleRepostWithCaption(post)} className="flex items-center gap-2 hover:text-green-500 group"><Repeat className="w-5 h-5" /> <span className="text-sm">Repost</span></button>
-                                        <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}><Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{post.likes_count}</span></button>
-                                        <button className="hover:text-indigo-500"><Share2 className="w-5 h-5" /></button>
-                                    </div>
+                                    {!post.is_reply && (
+                                        <div className="flex justify-between items-center text-slate-500 max-w-md mt-3" onClick={e => e.stopPropagation()}>
+                                            <button onClick={() => setActiveCommentId(activeCommentId === post.id ? null : post.id)} className="flex items-center gap-2 hover:text-indigo-500 group"><MessageCircle className="w-5 h-5" /> <span className="text-sm">{post.comments_count}</span></button>
+                                            <button onClick={() => handleRepostWithCaption(post)} className="flex items-center gap-2 hover:text-green-500 group"><Repeat className="w-5 h-5" /> <span className="text-sm">Repost</span></button>
+                                            <button onClick={() => handleLike(post.id)} className={`flex items-center gap-2 group ${post.liked_by_me ? "text-pink-500" : "hover:text-pink-500"}`}><Heart className={`w-5 h-5 ${post.liked_by_me ? "fill-current" : ""}`} /> <span className="text-sm">{post.likes_count}</span></button>
+                                            <button className="hover:text-indigo-500"><Share2 className="w-5 h-5" /></button>
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </article>
 
-                        {/* Comment Input Box */}
-                        {activeCommentId === post.id && (
+                        {activeCommentId === post.id && !post.is_reply && (
                             <div className="px-5 pb-4 pl-[4.5rem]">
                                 <div className="flex gap-2 items-center bg-slate-100 rounded-2xl px-4 py-2">
                                     <input autoFocus className="bg-transparent border-none outline-none w-full text-sm" placeholder="Post your reply..." value={commentText} onChange={e => setCommentText(e.target.value)} onKeyDown={e => e.key === 'Enter' && submitComment(post.id)} />
