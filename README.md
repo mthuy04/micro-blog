@@ -51,5 +51,5 @@ CampusTalk enables students to connect, share ideas, and stay updated with campu
 
 ### 1. Clone the repository
 ```bash
-git clone [[https://github.com/your-username/micro-blog.git](https://github.com/mthuy04/micro-blog)
+git clone https://github.com/mthuy04/micro-blog
 cd micro-blog
