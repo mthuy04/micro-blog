@@ -1,9 +1,7 @@
 # 🎓 CampusTalk - University Social Network
 
 **CampusTalk** is a full-stack micro-blogging and social networking platform tailored for university students. Built as the final project for the course **Computer Based Technologies (INS2065)**.
-
-![CampusTalk Banner](https://via.placeholder.com/1000x400?text=CampusTalk+Preview) 
-*(Thay thế link trên bằng ảnh chụp màn hình dự án thực tế của bạn)*
+<img width="696" height="397" alt="Ảnh màn hình 2026-01-04 lúc 17 01 00" src="https://github.com/user-attachments/assets/0ef0f92b-3026-41e1-9f49-b0eddcff4258" />
 
 ## 🚀 About The Project
 
@@ -53,5 +51,5 @@ CampusTalk enables students to connect, share ideas, and stay updated with campu
 
 ### 1. Clone the repository
 ```bash
-git clone [https://github.com/your-username/micro-blog.git](https://github.com/your-username/micro-blog.git)
+git clone [[https://github.com/your-username/micro-blog.git](https://github.com/mthuy04/micro-blog)
 cd micro-blog
